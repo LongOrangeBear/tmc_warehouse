@@ -1,0 +1,74 @@
+{
+  "app": {
+    "name": "TMC Warehouse",
+    "version": "1.0.0",
+    "language": "ru"
+  },
+  "paths": {
+    "database": "data/database/warehouse.db",
+    "receipts_root": "data/receipts",
+    "logs": "data/logs"
+  },
+  "tesseract": {
+    "path": "/usr/bin/tesseract",
+    "languages": [
+      "rus"
+    ],
+    "psm": 6
+  },
+  "poppler": {
+    "path": null
+  },
+  "camera": {
+    "default_index": 0,
+    "resolution": [
+      1280,
+      720
+    ],
+    "fps": 30,
+    "codec": "MJPG",
+    "container": "avi"
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8000,
+    "base_url": "http://127.0.0.1:8000/api/v1",
+    "timeout": 30
+  },
+  "sync": {
+    "retry_count": 3,
+    "retry_delay": 5
+  },
+  "validation": {
+    "control_types": {
+      "weight_check": {
+        "description": "Проверка веса",
+        "params": [
+          "target_weight",
+          "tolerance"
+        ]
+      },
+      "visual_check": {
+        "description": "Визуальный осмотр",
+        "params": [
+          "checklist"
+        ]
+      },
+      "dimension_check": {
+        "description": "Проверка размеров",
+        "params": [
+          "length",
+          "width",
+          "height",
+          "tolerance"
+        ]
+      },
+      "quantity_check": {
+        "description": "Пересчёт количества",
+        "params": [
+          "expected_count"
+        ]
+      }
+    }
+  }
+}

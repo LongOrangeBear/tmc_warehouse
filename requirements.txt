@@ -1,0 +1,46 @@
+# ============================================
+# TMC Warehouse - Зависимости
+# Python 3.12
+# ============================================
+
+# GUI Framework
+PySide6==6.6.1
+
+# Web Framework (Server)
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# ORM
+peewee==3.17.0
+
+# OCR & PDF
+pytesseract==0.3.10
+pdf2image==1.16.3
+pdfplumber==0.10.3
+pypdf==4.0.1
+
+# Image Processing
+Pillow==10.2.0
+opencv-python==4.9.0.80
+numpy==1.26.4
+
+# HTTP Client
+requests==2.31.0
+
+# Data Validation
+pydantic==2.6.0
+
+# Utilities
+python-dateutil==2.8.2
+python-json-logger==2.0.7
+
+# ============================================
+# Development Dependencies (optional)
+# Раскомментируйте для разработки/тестирования
+# ============================================
+
+# pytest==8.0.0
+# pytest-cov==4.1.0
+# httpx==0.26.0  # для тестирования FastAPI
+# black==24.1.0
+# ruff==0.1.14
