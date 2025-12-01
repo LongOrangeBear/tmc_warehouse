@@ -137,6 +137,18 @@ class ReceptionItemRead(ReceptionItemBase):
         default=None,
         description="Ссылка на товар из справочника, если найден по артикулу",
     )
+    control_type: Optional[ControlType] = Field(
+        default=None,
+        description="Тип контроля (из справочника товаров)",
+    )
+    control_params: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Параметры контроля (из справочника товаров)",
+    )
+    photos: List[str] = Field(
+        default_factory=list,
+        description="Список путей к фото (относительных)",
+    )
 
 
 class ReceptionItemControlUpdate(BaseModel):

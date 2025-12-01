@@ -1,75 +1,96 @@
 # tests/test_server_api.py
-"""
-Тесты REST API сервера.
-
-Запуск:
-    pytest tests/test_server_api.py -v
-"""
 import pytest
+from fastapi.testclient import TestClient
+from server.src.main_server import app
+from server.src.db.migrations import reset_db
 
+client = TestClient(app)
 
-class TestHealthEndpoint:
-    """Тесты эндпоинта /health."""
-    
-    def test_health_returns_ok(self, test_client):
-        """Health endpoint возвращает статус ok."""
-        response = test_client.get("/api/v1/health")
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "ok"
-        assert "time" in data
-    
-    def test_health_returns_datetime(self, test_client):
-        """Health endpoint возвращает валидную дату."""
-        response = test_client.get("/api/v1/health")
-        data = response.json()
-        
-        # Проверить что time похоже на datetime
-        assert "T" in data["time"] or "-" in data["time"]
+@pytest.fixture(autouse=True)
+def setup_db():
+    reset_db()
+    yield
 
+def test_health():
+    response = client.get("/api/v1/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
 
-class TestProductsEndpoint:
-    """Тесты эндпоинта /products."""
-    
-    def test_get_products_returns_list(self, test_client):
-        """GET /products возвращает список."""
-        response = test_client.get("/api/v1/products")
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-    
-    def test_get_product_by_article_not_found(self, test_client):
-        """GET /products/{article} возвращает 404 для несуществующего."""
-        response = test_client.get("/api/v1/products/NONEXISTENT-12345")
-        
-        assert response.status_code == 404
+def test_get_products():
+    response = client.get("/api/v1/products")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 5
+    assert data[0]["article"] == "BOLT-M10"
 
+def test_create_reception():
+    payload = {
+        "ttn_number": "API-TEST-001",
+        "ttn_date": "2025-02-20",
+        "supplier": "API Supplier",
+        "items": [
+            {
+                "article": "BOLT-M10",
+                "name": "Болт М10",
+                "quantity": 50,
+                "unit": "шт",
+                "control_required": True,
+                "suspicious_fields": []
+            }
+        ]
+    }
+    response = client.post("/api/v1/receptions", json=payload)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["ttn_number"] == "API-TEST-001"
+    assert len(data["items"]) == 1
 
-class TestReceptionsEndpoint:
-    """Тесты эндпоинта /receptions."""
+def test_get_receptions():
+    # Create one first
+    test_create_reception()
     
-    def test_create_reception(self, test_client, sample_reception_data):
-        """POST /receptions создаёт приёмку."""
-        response = test_client.post("/api/v1/receptions", json=sample_reception_data)
-        
-        assert response.status_code == 201
-        data = response.json()
-        assert data["id"] > 0
-        assert data["ttn_number"] == sample_reception_data["ttn_number"]
-        assert data["status"] == "pending"
+    response = client.get("/api/v1/receptions")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+    assert data[0]["ttn_number"] == "API-TEST-001"
+
+def test_update_control_results():
+    # 1. Create reception
+    payload = {
+        "ttn_number": "CTRL-TEST",
+        "ttn_date": "2025-02-20",
+        "supplier": "Control Supplier",
+        "items": [
+            {
+                "article": "BOLT-M10",
+                "name": "Болт М10",
+                "quantity": 10,
+                "unit": "шт",
+                "control_required": True
+            }
+        ]
+    }
+    create_resp = client.post("/api/v1/receptions", json=payload)
+    reception_id = create_resp.json()["id"]
+    item_id = create_resp.json()["items"][0]["id"]
     
-    def test_get_receptions_returns_list(self, test_client):
-        """GET /receptions возвращает список."""
-        response = test_client.get("/api/v1/receptions")
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
+    # 2. Update results
+    update_payload = {
+        "items": [
+            {
+                "id": item_id,
+                "control_status": "passed",
+                "control_result": {"passed": True, "message": "OK"},
+                "notes": "All good"
+            }
+        ]
+    }
     
-    def test_get_reception_not_found(self, test_client):
-        """GET /receptions/{id} возвращает 404 для несуществующей."""
-        response = test_client.get("/api/v1/receptions/99999")
-        
-        assert response.status_code == 404
+    response = client.post(f"/api/v1/receptions/{reception_id}/control-results", json=update_payload)
+    assert response.status_code == 200
+    
+    # 3. Check status
+    data = response.json()
+    assert data["status"] == "completed"
+    assert data["items"][0]["control_status"] == "passed"

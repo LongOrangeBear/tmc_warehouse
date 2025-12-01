@@ -1,42 +1,38 @@
+"""Точка входа клиента."""
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QMessageBox
+import logging
+from PySide6.QtWidgets import QApplication
 
-class MainWindow(QMainWindow):
-    def __init__(self) -> None:
-        super().__init__()
-        self.setWindowTitle("TMC Warehouse (demo skeleton)")
+from client.src.ui.main_window import MainWindow
 
-        btn_accept = QPushButton("Принять ТМЦ на склад")
-        btn_history = QPushButton("История приёмок")
-        btn_settings = QPushButton("Настройки")
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
-        layout = QVBoxLayout()
-        layout.addWidget(btn_accept)
-        layout.addWidget(btn_history)
-        layout.addWidget(btn_settings)
-
-        container = QWidget()
-        container.setLayout(layout)
-        self.setCentralWidget(container)
-
-        btn_accept.clicked.connect(self.on_accept)
-        btn_history.clicked.connect(self.on_history)
-        btn_settings.clicked.connect(self.on_settings)
-
-    def on_accept(self) -> None:
-        QMessageBox.information(self, "Действие", "Здесь будет сценарий приёмки ТМЦ.")
-
-    def on_history(self) -> None:
-        QMessageBox.information(self, "Действие", "Здесь будет история приёмок.")
-
-    def on_settings(self) -> None:
-        QMessageBox.information(self, "Действие", "Здесь будут настройки.")
 
 def main() -> None:
+    """Запустить клиентское приложение."""
     app = QApplication(sys.argv)
+    app.setApplicationName("TMC Warehouse")
+    app.setOrganizationName("TMC")
+    
     window = MainWindow()
     window.show()
+    
+    logger.info("Client application started")
+    
+    # Глобальный обработчик исключений
+    def exception_hook(exctype, value, traceback):
+        logger.critical("Unhandled exception", exc_info=(exctype, value, traceback))
+        sys.__excepthook__(exctype, value, traceback)
+        
+    sys.excepthook = exception_hook
+    
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()
