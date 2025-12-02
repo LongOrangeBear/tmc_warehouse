@@ -19,7 +19,7 @@ class ProductRepository:
     @staticmethod
     def get_all(limit: int = 100, offset: int = 0) -> List[ProductRead]:
         """Получить список товаров."""
-        query = Product.select().limit(limit).offset(offset)
+        query = Product.select().order_by(Product.id.asc()).limit(limit).offset(offset)
         return [ProductRepository._to_read(p) for p in query]
 
     @staticmethod

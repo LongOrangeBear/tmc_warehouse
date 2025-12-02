@@ -18,6 +18,27 @@ def seed_products():
     logger.info("🌱 Заполнение базы данных тестовыми товарами...")
     
     products_data = [
+        # Металлопрокат (для тестов)
+        {
+            "article": "BOLT-M10",
+            "name": "Болт М10",
+            "unit": "шт",
+            "requires_control": True,
+            "control_type": ControlType.WEIGHT_CHECK,
+            "control_params": json.dumps({
+                "min_weight": 9.5,
+                "max_weight": 10.5,
+                "instructions": "Взвесить 10 шт. Общий вес 95-105 г"
+            })
+        },
+        {
+            "article": "NUT-M10",
+            "name": "Гайка М10",
+            "unit": "шт",
+            "requires_control": False,
+            "control_type": None,
+            "control_params": None
+        },
         # TTN_1_A_654.pdf (Электроника)
         {
             "article": "512",

@@ -14,6 +14,34 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Обеспечить headless режим Qt в CI
+if os.environ.get("CI") and not os.environ.get("QT_QPA_PLATFORM"):
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+
+# Сделать QApplication идемпотентным (Singleton) для тестов,
+# чтобы повторные вызовы QApplication(sys.argv) не падали
+try:
+    from PySide6.QtWidgets import QApplication as _QtQApplication
+    import PySide6.QtWidgets as _QtWidgets
+
+    class _QAppSingleton(_QtQApplication):
+        _created = False
+        def __new__(cls, *args, **kwargs):
+            existing = _QtQApplication.instance()
+            if existing is not None:
+                return existing
+            return super().__new__(cls)
+        def __init__(self, *args, **kwargs):
+            if getattr(self, "_rovodev_initialized", False):
+                return
+            super().__init__(*args, **kwargs)
+            self._rovodev_initialized = True
+            self.setQuitOnLastWindowClosed(False)
+
+    _QtWidgets.QApplication = _QAppSingleton  # type: ignore
+except Exception:
+    pass
+
 
 # ═══════════════════════════════════════════════════════════════════
 # Fixtures для конфигурации
