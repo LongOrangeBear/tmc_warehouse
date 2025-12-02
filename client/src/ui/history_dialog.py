@@ -2,7 +2,7 @@
 from typing import List
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, 
+    QDialog, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, 
     QHeaderView, QPushButton, QMessageBox, QLabel, QAbstractItemView,
     QFileDialog
 )
@@ -36,6 +36,7 @@ class HistoryDialog(QDialog):
             "ID", "ТТН", "Дата", "Поставщик", "Статус"
         ])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         
         header = self.table.horizontalHeader()
@@ -50,13 +51,27 @@ class HistoryDialog(QDialog):
         
         layout.addWidget(self.table)
         
+        button_layout = QHBoxLayout()
+        
         refresh_btn = QPushButton("Обновить")
         refresh_btn.clicked.connect(self._load_data)
-        layout.addWidget(refresh_btn)
+        button_layout.addWidget(refresh_btn)
         
         export_btn = QPushButton("📊 Экспорт в Excel (CSV)")
         export_btn.clicked.connect(self._export_data)
-        layout.addWidget(export_btn)
+        button_layout.addWidget(export_btn)
+        
+        delete_selected_btn = QPushButton("🗑️ Удалить выбранные")
+        delete_selected_btn.clicked.connect(self._delete_selected)
+        delete_selected_btn.setProperty("class", "danger")
+        button_layout.addWidget(delete_selected_btn)
+        
+        delete_all_btn = QPushButton("⚠️ Очистить всю историю")
+        delete_all_btn.clicked.connect(self._delete_all)
+        delete_all_btn.setProperty("class", "danger")
+        button_layout.addWidget(delete_all_btn)
+        
+        layout.addLayout(button_layout)
         
         close_btn = QPushButton("Закрыть")
         close_btn.clicked.connect(self.accept)
@@ -127,6 +142,83 @@ class HistoryDialog(QDialog):
         row = selected_rows[0].row()
         reception_id = self.receptions[row].id
         
-        # Открыть диалог детального просмотра
         detail_dialog = ReceptionDetailDialog(reception_id, self)
         detail_dialog.exec()
+
+    def _delete_selected(self):
+        """Удалить выбранные приёмки."""
+        selected_rows = self.table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.warning(self, "Внимание", "Выберите приёмки для удаления")
+            return
+        
+        count = len(selected_rows)
+        reply = QMessageBox.question(
+            self,
+            "Подтверждение",
+            f"Вы уверены, что хотите удалить {count} приёмок?\n\n"
+            "Это действие нельзя отменить!",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
+            return
+        
+        success_count = 0
+        failed_count = 0
+        
+        for selected_row in selected_rows:
+            row = selected_row.row()
+            reception_id = self.receptions[row].id
+            
+            try:
+                if self.sync_service.delete_reception(reception_id):
+                    success_count += 1
+                else:
+                    failed_count += 1
+            except Exception as e:
+                failed_count += 1
+                print(f"Failed to delete reception {reception_id}: {e}")
+        
+        if success_count > 0:
+            QMessageBox.information(
+                self,
+                "Успех",
+                f"Удалено: {success_count}\nОшибок: {failed_count}"
+            )
+            self._load_data()
+        else:
+            QMessageBox.critical(
+                self,
+                "Ошибка",
+                f"Не удалось удалить приёмки. Ошибок: {failed_count}"
+            )
+
+    def _delete_all(self):
+        """Очистить всю историю приёмок."""
+        if not self.receptions:
+            QMessageBox.warning(self, "Внимание", "История пуста")
+            return
+        
+        reply = QMessageBox.question(
+            self,
+            "Подтверждение",
+            f"ВЫ УВЕРЕНЫ, что хотите удалить ВСЕ приёмки ({len(self.receptions)} шт.)?\n\n"
+            "⚠️ ЭТО ДЕЙСТВИЕ НЕЛЬЗЯ ОТМЕНИТЬ!\n"
+            "Будут удалены все данные о приёмках!",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
+            return
+        
+        try:
+            if self.sync_service.delete_all_receptions():
+                QMessageBox.information(self, "Успех", "Все приёмки удалены")
+                self._load_data()
+            else:
+                QMessageBox.critical(self, "Ошибка", "Не удалось очистить историю")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при удалении: {e}")

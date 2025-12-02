@@ -279,3 +279,34 @@ class SyncService:
         except requests.RequestException as e:
             logger.error(f"Failed to download photo: {e}")
             return False
+
+    def delete_reception(self, reception_id: int) -> bool:
+        """Удалить приёмку."""
+        logger.info(f"Deleting reception {reception_id}")
+        try:
+            response = requests.delete(
+                f"{self.base_url}/receptions/{reception_id}",
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            logger.info(f"Reception {reception_id} deleted successfully")
+            return True
+        except requests.RequestException as e:
+            logger.error(f"Failed to delete reception {reception_id}: {e}")
+            return False
+
+    def delete_all_receptions(self) -> bool:
+        """Удалить все приёмки."""
+        logger.warning("Deleting ALL receptions")
+        try:
+            response = requests.delete(
+                f"{self.base_url}/receptions",
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            data = response.json()
+            logger.info(f"All receptions deleted: {data.get('deleted', 0)} records")
+            return True
+        except requests.RequestException as e:
+            logger.error(f"Failed to delete all receptions: {e}")
+            return False
