@@ -59,24 +59,26 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Downloading Tesseract ${{ env.TESSERACT_VERSION }}..."
-          
-          # Используем официальный UB-Mannheim installer
+
           $url = "https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe"
           $installer = "tesseract-installer.exe"
-          
+
           Invoke-WebRequest -Uri $url -OutFile $installer
-          
-          # Тихая установка в temp директорию
-          Start-Process -FilePath $installer -ArgumentList "/S","/D=$PWD\tesseract-temp" -Wait
-          
-          # Копируем только нужное (без установщика)
-          New-Item -ItemType Directory -Force -Path "portable\Tesseract-OCR"
-          Copy-Item -Path "tesseract-temp\*" -Destination "portable\Tesseract-OCR" -Recurse
-          
-          # Проверка
-          if (Test-Path "portable\Tesseract-OCR\tesseract.exe") {
-            Write-Host "✓ Tesseract downloaded successfully"
-            & "portable\Tesseract-OCR\tesseract.exe" --version
+
+          # Silent install into a temp folder under the current workspace
+          $tempDir = Join-Path $PWD "tesseract-temp"
+          Start-Process -FilePath $installer -ArgumentList "/S", "/D=$tempDir" -Wait
+
+          # Copy only the installed files we need
+          $destDir = Join-Path $PWD "portable\\Tesseract-OCR"
+          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+          Copy-Item -Path (Join-Path $tempDir '*') -Destination $destDir -Recurse
+
+          # Verify
+          $tesseractExe = Join-Path $destDir "tesseract.exe"
+          if (Test-Path $tesseractExe) {
+            Write-Host "Tesseract downloaded successfully"
+            & $tesseractExe --version
           } else {
             Write-Error "Failed to download Tesseract"
             exit 1
@@ -89,24 +91,28 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Downloading Poppler ${{ env.POPPLER_VERSION }}..."
-          
-          # Используем oschwartz10612 Windows builds
+
+          # Use oschwartz10612 Windows builds
           $url = "https://github.com/oschwartz10612/poppler-windows/releases/download/v${{ env.POPPLER_VERSION }}-0/Release-${{ env.POPPLER_VERSION }}-0.zip"
           $zip = "poppler.zip"
-          
+
           Invoke-WebRequest -Uri $url -OutFile $zip
-          
-          # Распаковать
-          Expand-Archive -Path $zip -DestinationPath "poppler-temp"
-          
-          # Копируем только Library (бинарники)
-          New-Item -ItemType Directory -Force -Path "portable\poppler"
-          Copy-Item -Path "poppler-temp\poppler-${{ env.POPPLER_VERSION }}\Library\*" -Destination "portable\poppler" -Recurse
-          
-          # Проверка
-          if (Test-Path "portable\poppler\bin\pdftoppm.exe") {
-            Write-Host "✓ Poppler downloaded successfully"
-            & "portable\poppler\bin\pdftoppm.exe" -v
+
+          # Extract
+          $extractDir = Join-Path $PWD "poppler-temp"
+          Expand-Archive -Path $zip -DestinationPath $extractDir -Force
+
+          # Copy only the Library (binaries)
+          $destPoppler = Join-Path $PWD "portable\poppler"
+          New-Item -ItemType Directory -Force -Path $destPoppler | Out-Null
+          $libraryPath = Join-Path $extractDir ("poppler-${{ env.POPPLER_VERSION }}\Library")
+          Copy-Item -Path (Join-Path $libraryPath '*') -Destination $destPoppler -Recurse
+
+          # Verify
+          $pdftoppmExe = Join-Path $destPoppler "bin\pdftoppm.exe"
+          if (Test-Path $pdftoppmExe) {
+            Write-Host "Poppler downloaded successfully"
+            & $pdftoppmExe -v
           } else {
             Write-Error "Failed to download Poppler"
             exit 1
