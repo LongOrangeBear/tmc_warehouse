@@ -77,6 +77,10 @@ def main():
     # Copy config to Release root so it's editable
     shutil.copytree(root_dir / "config", release_dir / "config", dirs_exist_ok=True)
     
+    # Copy .env.example as reference
+    if (root_dir / ".env.example").exists():
+        shutil.copy(root_dir / ".env.example", release_dir / ".env.example")
+    
     # Create data dir
     (release_dir / "data").mkdir(exist_ok=True)
     
