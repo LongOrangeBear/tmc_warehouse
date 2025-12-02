@@ -34,6 +34,7 @@ pydantic==2.6.0
 # Utilities
 python-dateutil==2.8.2
 python-json-logger==2.0.7
+python-dotenv==1.0.0
 
 # LLM Provider
 openai>=1.43.0,<2.0.0

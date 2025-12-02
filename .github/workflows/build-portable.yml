@@ -95,16 +95,25 @@ jobs:
 
           if ($downloaded) {
             try {
+              # Prepare temp directory
+              if (Test-Path $tempDir) { Remove-Item -Recurse -Force $tempDir }
+              New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+
               # Silent install into a temp folder under the current workspace
               Start-Process -FilePath $installer -ArgumentList "/S", "/D=$tempDir" -Wait
-              Copy-Item -Path (Join-Path $tempDir '*') -Destination $destDir -Recurse
+
+              # Validate installer output (tesseract.exe should exist)
+              $tempExe = Join-Path $tempDir "tesseract.exe"
+              if (-not (Test-Path $tempExe)) { throw "Installer did not produce expected files in $tempDir" }
+
+              Copy-Item -Path (Join-Path $tempDir '*') -Destination $destDir -Recurse -ErrorAction Stop
             } catch {
               Write-Warning ("Installer failed, falling back to Chocolatey: {0}" -f $_.Exception.Message)
               choco install tesseract -y
               $chocoPath = "C:\Program Files\Tesseract-OCR"
               if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
               if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
-              Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse
+              Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse -ErrorAction Stop
             }
           } else {
             Write-Warning "Falling back to Chocolatey installation of Tesseract"
