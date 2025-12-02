@@ -45,4 +45,5 @@ jobs:
       run: |
         export PYTHONPATH=$PYTHONPATH:$(pwd)
         export QT_QPA_PLATFORM=offscreen
-        python tests/test_ui_components.py
+        export CI=true
+        pytest tests/test_ui_components.py -v

@@ -216,11 +216,9 @@ class ControlDialog(QDialog):
             
         if self.pending_items:
             self.items_list.setCurrentRow(0)
-            # В тестовой среде не запускаем реальную камеру, используем MOCK
+            # В тестовой среде не запускаем превью вовсе, чтобы не создавать потоки
             test_env = os.getenv("CI") == "true" or os.getenv("QT_QPA_PLATFORM") == "offscreen"
-            if test_env:
-                self.camera_service.start_preview(camera_index=-1)
-            else:
+            if not test_env:
                 self.camera_service.start_preview()
         else:
             QMessageBox.information(self, "Готово", "Все позиции проверены")
