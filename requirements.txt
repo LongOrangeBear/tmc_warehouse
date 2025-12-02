@@ -9,6 +9,7 @@ PySide6==6.6.1
 # Web Framework (Server)
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
+python-multipart==0.0.9
 
 # ORM
 peewee==3.17.0

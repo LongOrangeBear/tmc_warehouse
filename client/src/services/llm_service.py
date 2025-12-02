@@ -5,8 +5,10 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 import json
 
-import openai
-from openai import OpenAI
+try:
+    from openai import OpenAI  # type: ignore
+except Exception:  # OpenAI SDK may be unavailable in test/runtime environments
+    OpenAI = None  # type: ignore
 
 from client.src.config import get_config
 
@@ -37,7 +39,9 @@ class LLMService:
         
         self.client: Optional[OpenAI] = None
         
-        if self.api_key:
+        if OpenAI is None:
+            logger.warning("OpenAI SDK is not installed. LLM features will be disabled.")
+        elif self.api_key:
             try:
                 self.client = OpenAI(
                     api_key=self.api_key,

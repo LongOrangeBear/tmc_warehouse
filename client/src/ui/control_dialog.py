@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import List, Optional
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-    QPushButton, QListWidget, QStackedWidget, 
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+    QPushButton, QListWidget, QStackedWidget,
     QGroupBox, QTextEdit, QMessageBox, QSplitter,
-    QScrollArea, QSizePolicy
+    QScrollArea, QSizePolicy, QWidget
 )
 from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6.QtGui import QPixmap, QScreen
