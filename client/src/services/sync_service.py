@@ -191,3 +191,91 @@ class SyncService:
         except requests.RequestException as e:
             logger.error(f"Failed to send control results: {e}")
             return None
+
+    def download_video(self, reception_id: int, save_path: Path) -> bool:
+        """Скачать видео приёмки."""
+        logger.info(f"Downloading video for reception {reception_id}")
+        try:
+            response = requests.get(
+                f"{self.base_url}/receptions/{reception_id}/video",
+                timeout=self.timeout * 10,  # Большой timeout для видео
+                stream=True
+            )
+            response.raise_for_status()
+            
+            with open(save_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            logger.info(f"Video downloaded successfully: {save_path}")
+            return True
+        except requests.RequestException as e:
+            logger.error(f"Failed to download video: {e}")
+            return False
+
+    def download_document(self, reception_id: int, save_path: Path) -> bool:
+        """Скачать документ ТТН."""
+        logger.info(f"Downloading document for reception {reception_id}")
+        try:
+            response = requests.get(
+                f"{self.base_url}/receptions/{reception_id}/document",
+                timeout=self.timeout * 5,
+                stream=True
+            )
+            response.raise_for_status()
+            
+            with open(save_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            logger.info(f"Document downloaded successfully: {save_path}")
+            return True
+        except requests.RequestException as e:
+            logger.error(f"Failed to download document: {e}")
+            return False
+
+    def download_item_photos_zip(self, reception_id: int, item_id: int, save_path: Path) -> bool:
+        """Скачать все фотографии товара в ZIP архиве."""
+        logger.info(f"Downloading photos for item {item_id}")
+        try:
+            response = requests.get(
+                f"{self.base_url}/receptions/{reception_id}/items/{item_id}/photos",
+                timeout=self.timeout * 5,
+                stream=True
+            )
+            response.raise_for_status()
+            
+            with open(save_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            logger.info(f"Photos ZIP downloaded successfully: {save_path}")
+            return True
+        except requests.RequestException as e:
+            logger.error(f"Failed to download photos: {e}")
+            return False
+
+    def download_single_photo(self, reception_id: int, item_id: int, photo_index: int, save_path: Path) -> bool:
+        """Скачать конкретную фотографию товара."""
+        logger.info(f"Downloading photo {photo_index} for item {item_id}")
+        try:
+            response = requests.get(
+                f"{self.base_url}/receptions/{reception_id}/items/{item_id}/photos/{photo_index}",
+                timeout=self.timeout,
+                stream=True
+            )
+            response.raise_for_status()
+            
+            with open(save_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            logger.info(f"Photo downloaded successfully: {save_path}")
+            return True
+        except requests.RequestException as e:
+            logger.error(f"Failed to download photo: {e}")
+            return False

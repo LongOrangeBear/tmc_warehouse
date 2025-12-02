@@ -167,22 +167,28 @@ class ReceptionRepository:
                 ReceptionItem.update(
                     control_status=update.control_status.value,
                     control_result=json.dumps(update.control_result) if update.control_result else None,
-                    notes=update.notes,
-                    photos=json.dumps(update.photos) if update.photos else None
+                    notes=update.notes
                 ).where(ReceptionItem.id == update.id).execute()
 
             # Проверить завершены ли все позиции
+            # Считаем товары, которые ещё не проверены (pending)
             pending_count = ReceptionItem.select().where(
                 (ReceptionItem.reception == reception) &
-                (ReceptionItem.control_required == True) &
                 (ReceptionItem.control_status == ControlStatus.PENDING.value)
             ).count()
-
+            
+            # Если нет непроверенных товаров - приёмка завершена
             if pending_count == 0:
-                Reception.update(
-                    status=ReceptionStatus.COMPLETED.value,
-                    completed_at=datetime.now()
-                ).where(Reception.id == reception_id).execute()
+                # Проверяем, есть ли хотя бы один товар
+                total_items = ReceptionItem.select().where(
+                    ReceptionItem.reception == reception
+                ).count()
+                
+                if total_items > 0:
+                    Reception.update(
+                        status=ReceptionStatus.COMPLETED.value,
+                        completed_at=datetime.now()
+                    ).where(Reception.id == reception_id).execute()
 
         return ReceptionRepository.get_by_id(reception_id)
 

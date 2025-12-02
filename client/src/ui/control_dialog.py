@@ -5,9 +5,11 @@ from typing import List, Optional
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QListWidget, QStackedWidget, 
-    QGroupBox, QTextEdit, QMessageBox
+    QGroupBox, QTextEdit, QMessageBox, QSplitter,
+    QScrollArea, QSizePolicy
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtGui import QPixmap, QScreen
 
 from client.src.services import (
     CameraService, ValidatorService, SyncService, StorageService
@@ -26,7 +28,9 @@ class ControlDialog(QDialog):
         super().__init__(parent)
         self.reception = reception
         self.setWindowTitle(f"Входной контроль - Приёмка #{reception.id}")
-        self.resize(1000, 700)
+        
+        screen = QScreen.availableGeometry(self.screen())
+        self.resize(int(screen.width() * 0.85), int(screen.height() * 0.85))
         
         self.camera_service = CameraService()
         self.validator_service = ValidatorService()
@@ -40,62 +44,122 @@ class ControlDialog(QDialog):
         self._load_items()
 
     def _setup_ui(self):
-        layout = QHBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(5)
+        main_layout.setContentsMargins(5, 5, 5, 5)
         
-        # Левая панель: Список позиций
-        left_layout = QVBoxLayout()
-        left_layout.addWidget(QLabel("Позиции для контроля:"))
+        main_splitter = QSplitter(Qt.Horizontal)
+        
+        left_splitter = QSplitter(Qt.Vertical)
+        
+        video_container = QGroupBox("Видеофиксация")
+        video_layout = QVBoxLayout(video_container)
+        video_layout.setContentsMargins(5, 5, 5, 5)
+        
+        self.video_widget = VideoWidget()
+        self.video_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.video_widget.setMinimumHeight(400)
+        video_layout.addWidget(self.video_widget)
+        
+        left_splitter.addWidget(video_container)
+        
+        items_container = QGroupBox("Список товаров")
+        items_layout = QVBoxLayout(items_container)
+        items_layout.setContentsMargins(5, 5, 5, 5)
+        
+        info_widget = QWidget()
+        info_widget.setMaximumHeight(60)
+        info_grid = QVBoxLayout(info_widget)
+        info_grid.setSpacing(1)
+        info_grid.setContentsMargins(0, 0, 0, 0)
+        
+        self.ttn_label = QLabel()
+        self.ttn_label.setStyleSheet("font-size: 11px; padding: 2px; background: #e3f2fd; border-radius: 2px;")
+        self.ttn_label.setMaximumHeight(18)
+        info_grid.addWidget(self.ttn_label)
+        
+        self.date_label = QLabel()
+        self.date_label.setStyleSheet("font-size: 11px; padding: 2px; background: #e8f5e9; border-radius: 2px;")
+        self.date_label.setMaximumHeight(18)
+        info_grid.addWidget(self.date_label)
+        
+        self.supplier_label = QLabel()
+        self.supplier_label.setStyleSheet("font-size: 11px; padding: 2px; background: #fff3e0; border-radius: 2px;")
+        self.supplier_label.setMaximumHeight(18)
+        info_grid.addWidget(self.supplier_label)
+        
+        items_layout.addWidget(info_widget)
+        
+        items_layout.addWidget(QLabel("Позиции для контроля:"))
         self.items_list = QListWidget()
         self.items_list.currentRowChanged.connect(self._on_item_selected)
-        left_layout.addWidget(self.items_list)
+        items_layout.addWidget(self.items_list)
         
-        layout.addLayout(left_layout, 1)
+        left_splitter.addWidget(items_container)
+        left_splitter.setSizes([600, 200])
         
-        # Правая панель: Рабочая область
-        right_layout = QVBoxLayout()
+        main_splitter.addWidget(left_splitter)
         
-        # Видео
-        self.video_widget = VideoWidget()
-        self.video_widget.setMinimumHeight(300)
-        right_layout.addWidget(self.video_widget)
+        right_splitter = QSplitter(Qt.Vertical)
         
-        # Инструкции и ввод
+        preview_container = QGroupBox("Превью документа")
+        preview_layout = QVBoxLayout(preview_container)
+        preview_layout.setContentsMargins(5, 5, 5, 5)
+        
+        preview_scroll = QScrollArea()
+        preview_scroll.setWidgetResizable(True)
+        preview_scroll.setStyleSheet("background-color: #f5f5f5;")
+        
+        self.preview_label = QLabel("Документ не загружен")
+        self.preview_label.setAlignment(Qt.AlignCenter)
+        self.preview_label.setStyleSheet("color: gray; padding: 20px;")
+        self.preview_label.setScaledContents(False)
+        
+        preview_scroll.setWidget(self.preview_label)
+        preview_layout.addWidget(preview_scroll)
+        
+        right_splitter.addWidget(preview_container)
+        
+        control_container = QGroupBox("Управление приёмкой")
+        control_layout = QVBoxLayout(control_container)
+        control_layout.setContentsMargins(5, 5, 5, 5)
+        
         self.info_group = QGroupBox("Информация о товаре")
+        self.info_group.setMinimumHeight(120)
         info_layout = QVBoxLayout(self.info_group)
         self.info_label = QLabel()
         self.info_label.setWordWrap(True)
         info_layout.addWidget(self.info_label)
-        right_layout.addWidget(self.info_group)
+        control_layout.addWidget(self.info_group)
         
         self.instruction_group = QGroupBox("Инструкция контролёра")
+        self.instruction_group.setMinimumHeight(150)
         inst_layout = QVBoxLayout(self.instruction_group)
         self.instruction_label = QLabel()
         self.instruction_label.setWordWrap(True)
         inst_layout.addWidget(self.instruction_label)
-        right_layout.addWidget(self.instruction_group)
+        control_layout.addWidget(self.instruction_group)
         
-        # Поле для заметок
-        right_layout.addWidget(QLabel("Заметки:"))
+        control_layout.addWidget(QLabel("Заметки:"))
         self.notes_edit = QTextEdit()
         self.notes_edit.setMaximumHeight(60)
-        right_layout.addWidget(self.notes_edit)
+        control_layout.addWidget(self.notes_edit)
         
-        # Кнопки управления
         btn_layout = QHBoxLayout()
         
-        self.photo_btn = QPushButton("📷 Сделать фото")
+        self.photo_btn = QPushButton("📷 Фото")
         self.photo_btn.clicked.connect(self._take_photo)
         
-        self.record_btn = QPushButton("🔴 Начать запись")
+        self.record_btn = QPushButton("🔴 Запись")
         self.record_btn.clicked.connect(self._toggle_recording)
         
-        self.pass_btn = QPushButton("✅ Контроль пройден")
+        self.pass_btn = QPushButton("✅ Пройден")
         self.pass_btn.clicked.connect(lambda: self._submit_result(True))
-        self.pass_btn.setStyleSheet("background-color: #107c10;") # Green
+        self.pass_btn.setStyleSheet("background-color: #107c10; color: white; font-weight: bold; padding: 8px;")
         
         self.fail_btn = QPushButton("❌ Отклонить")
         self.fail_btn.clicked.connect(lambda: self._submit_result(False))
-        self.fail_btn.setStyleSheet("background-color: #d13438;") # Red
+        self.fail_btn.setStyleSheet("background-color: #d13438; color: white; font-weight: bold; padding: 8px;")
         
         btn_layout.addWidget(self.photo_btn)
         btn_layout.addWidget(self.record_btn)
@@ -103,16 +167,42 @@ class ControlDialog(QDialog):
         btn_layout.addWidget(self.pass_btn)
         btn_layout.addWidget(self.fail_btn)
         
-        right_layout.addLayout(btn_layout)
+        control_layout.addLayout(btn_layout)
         
-        layout.addLayout(right_layout, 2)
+        right_splitter.addWidget(control_container)
+        right_splitter.setStretchFactor(0, 1)
+        right_splitter.setStretchFactor(1, 1)
         
-        # Подключение сигналов камеры
+        main_splitter.addWidget(right_splitter)
+        main_splitter.setStretchFactor(0, 2)
+        main_splitter.setStretchFactor(1, 1)
+        
+        main_layout.addWidget(main_splitter)
+        
+        self._update_reception_info()
+        
         self.camera_service.frame_ready.connect(self.video_widget.update_frame)
         self.camera_service.recording_started.connect(self._on_recording_started)
         self.camera_service.recording_stopped.connect(self._on_recording_stopped)
         self.camera_service.error.connect(self._on_camera_error)
 
+    def _update_reception_info(self):
+        self.ttn_label.setText(f"📝 ТТН: {self.reception.ttn_number}")
+        self.date_label.setText(f"📅 Дата: {self.reception.ttn_date}")
+        self.supplier_label.setText(f"🏭 Поставщик: {self.reception.supplier}")
+        
+        if self.reception.document_path:
+            try:
+                doc_path = Path("data") / self.reception.document_path
+                if doc_path.exists():
+                    pixmap = QPixmap(str(doc_path))
+                    if not pixmap.isNull():
+                        scaled_pixmap = pixmap.scaledToWidth(400, Qt.SmoothTransformation)
+                        self.preview_label.setPixmap(scaled_pixmap)
+                        self.preview_label.setScaledContents(False)
+            except Exception as e:
+                self.preview_label.setText(f"Ошибка загрузки: {e}")
+    
     def _load_items(self):
         self.items_list.clear()
         self.pending_items = [
@@ -243,12 +333,14 @@ class ControlDialog(QDialog):
                 QMessageBox.warning(self, "Ошибка", f"Не удалось начать запись: {e}")
 
     def _on_recording_started(self):
-        self.record_btn.setText("⏹ Остановить запись")
-        self.record_btn.setStyleSheet("background-color: #d13438;")
+        self.record_btn.setText("⏹ Остановить")
+        self.record_btn.setStyleSheet("background-color: #d13438; color: white; font-weight: bold; padding: 8px;")
+        self.video_widget.start_recording_info()
 
     def _on_recording_stopped(self, path: str):
-        self.record_btn.setText("🔴 Начать запись")
+        self.record_btn.setText("🔴 Запись")
         self.record_btn.setStyleSheet("")
+        self.video_widget.stop_recording_info()
         
         # Сохраняем видео
         if self.current_item:

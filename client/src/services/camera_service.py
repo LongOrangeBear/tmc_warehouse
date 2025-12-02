@@ -194,6 +194,8 @@ class CameraService(QObject):
     frame_ready = Signal(QImage)
     recording_started = Signal()
     recording_stopped = Signal(str)  # путь к файлу
+    recording_size_updated = Signal(int)  # размер файла в байтах
+    recording_limit_exceeded = Signal(str)  # причина остановки
     error = Signal(str)
 
     def __init__(self):
@@ -203,8 +205,18 @@ class CameraService(QObject):
         self.resolution = tuple(config["camera"]["resolution"])
         self.fps = config["camera"]["fps"]
         self.container = config["camera"]["container"]
+        self.max_duration_seconds = config["camera"].get("max_duration_seconds", 300)
+        self.max_size_mb = config["camera"].get("max_size_mb", 100)
         
         self.worker: Optional[CameraWorker] = None
+        self.current_video_path: Optional[Path] = None
+        self.recording_start_time: Optional[datetime] = None
+        
+        # Таймер для обновления размера видео
+        from PySide6.QtCore import QTimer
+        self.size_update_timer = QTimer(self)
+        self.size_update_timer.timeout.connect(self._update_video_size)
+        self.size_update_timer.setInterval(1000)  # Каждую секунду
 
     @staticmethod
     def list_available_cameras(max_check: int = 5) -> List[int]:
@@ -271,6 +283,9 @@ class CameraService(QObject):
         output_path = output_dir / filename
 
         self.worker.start_recording(output_path)
+        self.current_video_path = output_path
+        self.recording_start_time = datetime.now()
+        self.size_update_timer.start()
         self.recording_started.emit()
         return output_path
 
@@ -279,7 +294,10 @@ class CameraService(QObject):
         if not self.worker:
             return None
 
+        self.size_update_timer.stop()
         path = self.worker.stop_recording()
+        self.current_video_path = None
+        self.recording_start_time = None
         if path:
             self.recording_stopped.emit(str(path))
         return path
@@ -287,6 +305,33 @@ class CameraService(QObject):
     def is_recording(self) -> bool:
         """Проверить идёт ли запись."""
         return self.worker is not None and self.worker.recording
+    
+    def _update_video_size(self):
+        """Обновить размер видеофайла и отправить сигнал."""
+        if self.current_video_path and self.current_video_path.exists():
+            try:
+                size = self.current_video_path.stat().st_size
+                self.recording_size_updated.emit(size)
+                
+                # Проверка лимитов
+                if self.recording_start_time:
+                    elapsed = (datetime.now() - self.recording_start_time).total_seconds()
+                    size_mb = size / (1024 * 1024)
+                    
+                    if elapsed >= self.max_duration_seconds:
+                        logger.info(f"Recording stopped: duration limit exceeded ({elapsed:.1f}s >= {self.max_duration_seconds}s)")
+                        self.recording_limit_exceeded.emit(
+                            f"⏱ Запись остановлена\n\nПревышен лимит времени\n({int(elapsed)}с / {self.max_duration_seconds}с)"
+                        )
+                        self.stop_recording()
+                    elif size_mb >= self.max_size_mb:
+                        logger.info(f"Recording stopped: size limit exceeded ({size_mb:.1f}MB >= {self.max_size_mb}MB)")
+                        self.recording_limit_exceeded.emit(
+                            f"💾 Запись остановлена\n\nПревышен лимит размера\n({size_mb:.1f}MB / {self.max_size_mb}MB)"
+                        )
+                        self.stop_recording()
+            except Exception as e:
+                logger.warning(f"Failed to get video size: {e}")
 
     def take_snapshot(self) -> Optional[bytes]:
         """Сделать снимок текущего кадра."""

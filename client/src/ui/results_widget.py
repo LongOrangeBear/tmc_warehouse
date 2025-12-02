@@ -1,6 +1,7 @@
 """Виджет таблицы результатов распознавания."""
-from typing import List
+from typing import List, Tuple, Optional
 import logging
+import uuid
 from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView, 
     QAbstractItemView, QMenu
@@ -20,7 +21,7 @@ class ResultsWidget(QTableWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._items: List[ReceptionItemCreate] = []
+        self._items: List[Tuple[str, ReceptionItemCreate]] = []  # (uuid, item)
         self._updating = False
         
         self.setColumnCount(7)  # Добавили колонку "Проверено"
@@ -28,35 +29,42 @@ class ResultsWidget(QTableWidget):
             "Артикул", "Наименование", "Количество", "Ед.изм.", "Статус OCR", "БД", "Проверено"
         ])
         
-        # Размеры колонок
+        # Размеры колонок (фиксированные для стабильности)
         header = self.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        header.resizeSection(0, 120)  # Артикул
         header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # БД статус
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Проверено
+        header.setSectionResizeMode(2, QHeaderView.Fixed)
+        header.resizeSection(2, 80)  # Количество
+        header.setSectionResizeMode(3, QHeaderView.Fixed)
+        header.resizeSection(3, 70)  # Ед.изм
+        header.setSectionResizeMode(4, QHeaderView.Fixed)
+        header.resizeSection(4, 110)  # OCR статус
+        header.setSectionResizeMode(5, QHeaderView.Fixed)
+        header.resizeSection(5, 110)  # БД статус
+        header.setSectionResizeMode(6, QHeaderView.Fixed)
+        header.resizeSection(6, 120)  # Проверено
         
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
         
         self.itemChanged.connect(self._on_item_changed)
-        self._items: List[ReceptionItemCreate] = []
+        self._items: List[Tuple[str, ReceptionItemCreate]] = []
         self._updating = False
 
     def set_items(self, items: List[ReceptionItemCreate]):
         """Установить список позиций."""
         self._updating = True
-        self._items = items
+        # Generate UUIDs for new items
+        self._items = [(str(uuid.uuid4()), item) for item in items]
         self.setRowCount(len(items))
         
         # Импортируем SyncService для проверки БД
         from client.src.services import SyncService
         sync_service = SyncService()
         
-        for row, item in enumerate(items):
+        for row, (uid, item) in enumerate(self._items):
             # Артикул
             art_item = QTableWidgetItem(item.article)
             if "article" in item.suspicious_fields:
@@ -138,30 +146,50 @@ class ResultsWidget(QTableWidget):
         self._updating = False
 
     def get_items(self) -> List[ReceptionItemCreate]:
-        """Получить список позиций из таблицы."""
-        items = []
+        """Получить список позиций из таблицы (без UUID)."""
+        # Reconstruct items from table to capture edits
+        return [item for _, item in self.get_items_with_uuids()]
+
+    def get_items_with_uuids(self) -> List[Tuple[str, ReceptionItemCreate]]:
+        """Получить список позиций с их UUID."""
+        items_with_uuids = []
         for row in range(self.rowCount()):
+            if row >= len(self._items):
+                continue
+                
+            original_uuid, original_item = self._items[row]
+            
             article = self.item(row, 0).text()
             name = self.item(row, 1).text()
             quantity_text = self.item(row, 2).text()
             unit = self.item(row, 3).text()
-            # Колонки 4 и 5 - статусы (не редактируемые)
             
             try:
                 quantity = float(quantity_text)
             except ValueError:
                 quantity = 0.0
             
-            # When reconstructing from the table, we assume no suspicious fields
-            # as they would have been corrected by the user or are not directly editable.
-            items.append(ReceptionItemCreate(
-                article=article,
-                name=name,
-                quantity=quantity,
-                unit=unit,
-                suspicious_fields=[]
-            ))
-        return items
+            # Create new item with updated fields but keep original suspicious_fields
+            # (or update them if user edited, but here we just copy for simplicity)
+            # Ideally we should track if user edited suspicious fields.
+            # In _on_item_changed we update the object in self._items.
+            # So we can just return the object from self._items!
+            # But wait, self._items is updated in _on_item_changed.
+            # So we can just return self._items?
+            # Yes, provided self._items stays in sync with rows.
+            # _delete_selected_row keeps it in sync.
+            # _add_row keeps it in sync.
+            # _on_item_changed updates the object in place.
+            
+            items_with_uuids.append((original_uuid, original_item))
+            
+        return items_with_uuids
+
+    def get_item_uuid(self, row: int) -> Optional[str]:
+        """Получить UUID товара по индексу строки."""
+        if 0 <= row < len(self._items):
+            return self._items[row][0]
+        return None
 
     def _on_item_changed(self, item: QTableWidgetItem):
         """Обработка редактирования ячейки."""
@@ -174,7 +202,7 @@ class ResultsWidget(QTableWidget):
         if row < 0 or row >= len(self._items):
             return
             
-        obj = self._items[row]
+        _, obj = self._items[row]
         text = item.text()
         
         if col == 0:
@@ -233,6 +261,6 @@ class ResultsWidget(QTableWidget):
         new_item = ReceptionItemCreate(
             article="", name="Новый товар", quantity=1, unit="шт", suspicious_fields=[]
         )
-        self._items.append(new_item)
-        self.set_items(self._items) # Перерисовать всё проще
+        self._items.append((str(uuid.uuid4()), new_item))
+        self.set_items([item for _, item in self._items]) # Перерисовать всё проще
         self.items_changed.emit()

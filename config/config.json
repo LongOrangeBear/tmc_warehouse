@@ -33,7 +33,9 @@
         ],
         "fps": 30,
         "codec": "MJPG",
-        "container": "avi"
+        "container": "avi",
+        "max_duration_seconds": 300,
+        "max_size_mb": 100
     },
     "server": {
         "host": "127.0.0.1",

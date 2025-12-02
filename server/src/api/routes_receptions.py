@@ -1,6 +1,6 @@
 """Эндпоинты для работы с приёмками."""
 from typing import List
-from fastapi import APIRouter, HTTPException, Query, Body, UploadFile, File
+from fastapi import APIRouter, HTTPException, Query, Body
 
 from common.models import (
     ReceptionCreate, ReceptionRead, ReceptionShort, 
@@ -48,23 +48,3 @@ def update_control_results(
     return reception
 
 
-@router.post("/{reception_id}/items/{item_id}/photo", response_model=bool)
-def upload_item_photo(
-    reception_id: int,
-    item_id: int,
-    file: UploadFile = File(...)
-) -> bool:
-    """Загрузить фото для позиции."""
-    # В реальном приложении мы бы сохраняли файл и обновляли путь в БД
-    # Но так как мы передаем пути в control-results, здесь мы просто сохраняем файл
-    # в папку приёмки.
-    
-    # Логика сохранения файла на сервере аналогична document/video
-    # Для простоты пока вернем True, предполагая что клиент сам сохранил и передал путь,
-    # или что этот эндпоинт будет реализован позже для централизованного хранения.
-    
-    # Но подождите, клиент сохраняет локально. Если мы хотим синхронизацию,
-    # нам нужно принимать файл и сохранять его на сервере.
-    
-    # TODO: Реализовать сохранение файла на сервере
-    return True

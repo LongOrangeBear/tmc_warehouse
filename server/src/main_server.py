@@ -9,7 +9,7 @@ from pathlib import Path
 
 from server.src.config import get_config
 from server.src.db.migrations import init_db, seed_products
-from server.src.api import routes_health, routes_products, routes_receptions, routes_files
+from server.src.api import routes_health, routes_products, routes_receptions, routes_files, routes_downloads
 
 # Настройка логирования
 logging.basicConfig(
@@ -65,6 +65,7 @@ app.include_router(routes_health.router, prefix="/api/v1")
 app.include_router(routes_products.router, prefix="/api/v1")
 app.include_router(routes_receptions.router, prefix="/api/v1")
 app.include_router(routes_files.router, prefix="/api/v1")
+app.include_router(routes_downloads.router, prefix="/api/v1")
 
 # Статика для доступа к файлам
 receipts_root_str = config["paths"]["receipts_root"]

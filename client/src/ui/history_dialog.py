@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from client.src.services import SyncService
+from client.src.ui.reception_detail_dialog import ReceptionDetailDialog
 from common.models import ReceptionShort, ReceptionStatus
 
 
@@ -43,6 +44,9 @@ class HistoryDialog(QDialog):
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.Stretch)
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        
+        # Двойной клик для открытия детального просмотра
+        self.table.doubleClicked.connect(self._open_detail_dialog)
         
         layout.addWidget(self.table)
         
@@ -113,3 +117,16 @@ class HistoryDialog(QDialog):
             QMessageBox.information(self, "Успех", f"Отчет сохранен: {path}")
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить файл: {e}")
+    
+    def _open_detail_dialog(self):
+        """Открыть детальный просмотр выбранной приёмки."""
+        selected_rows = self.table.selectionModel().selectedRows()
+        if not selected_rows:
+            return
+        
+        row = selected_rows[0].row()
+        reception_id = self.receptions[row].id
+        
+        # Открыть диалог детального просмотра
+        detail_dialog = ReceptionDetailDialog(reception_id, self)
+        detail_dialog.exec()
