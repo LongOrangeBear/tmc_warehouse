@@ -13,11 +13,10 @@ class StorageService:
         config = get_config()
         self.receipts_root = Path(config["paths"]["receipts_root"])
         
-        # Ensure absolute path
+        # Ensure absolute path rooted at current working directory if relative
         if not self.receipts_root.is_absolute():
-            # Assuming project root is /home/meow/work/tmc_warehouse
-            self.receipts_root = Path("/home/meow/work/tmc_warehouse") / self.receipts_root
-            
+            self.receipts_root = Path.cwd() / self.receipts_root
+        
         self.receipts_root.mkdir(parents=True, exist_ok=True)
 
     def get_reception_folder(self, reception_id: int, ttn_date: date) -> Path:
