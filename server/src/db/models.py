@@ -18,8 +18,9 @@ def get_database() -> SqliteDatabase:
     # Ensure we use absolute path for DB to avoid CWD issues
     db_path_str = config["paths"]["database"]
     if not Path(db_path_str).is_absolute():
-        # Calculate project root dynamically: models.py is in server/src/db/
-        project_root = Path(__file__).parent.parent.parent.parent
+        # Calculate project root dynamically
+        from common.utils import get_project_root
+        project_root = get_project_root()
         db_path = project_root / db_path_str
     else:
         db_path = Path(db_path_str)

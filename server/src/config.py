@@ -1,5 +1,6 @@
 """Загрузка конфигурации сервера."""
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict
 
@@ -12,16 +13,30 @@ def load_config() -> Dict[str, Any]:
         return _config
     
     # Путь относительно корня проекта
-    config_path = Path(__file__).parent.parent.parent.parent / "config" / "config.json"
+    from common.utils import get_project_root
+    project_root = get_project_root()
+    config_path = project_root / "config" / "config.json"
     
     if not config_path.exists():
-        # Fallback for different running contexts, try absolute path based on known structure
-        # Assuming we are in /home/meow/work/tmc_warehouse/server/src/
-        possible_path = Path("/home/meow/work/tmc_warehouse/config/config.json")
-        if possible_path.exists():
-            config_path = possible_path
+        # Fallback: try to find in _MEIPASS if bundled
+        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+             bundled_path = Path(sys._MEIPASS) / "config" / "config.json"
+             if bundled_path.exists():
+                 config_path = bundled_path
+             else:
+                 # Last resort: try absolute path (dev only)
+                 possible_path = Path("/home/meow/work/tmc_warehouse/config/config.json")
+                 if possible_path.exists():
+                     config_path = possible_path
+                 else:
+                     raise FileNotFoundError(f"Config not found at {config_path} or bundled path")
         else:
-             raise FileNotFoundError(f"Config not found: {config_path}")
+             # Last resort: try absolute path (dev only)
+             possible_path = Path("/home/meow/work/tmc_warehouse/config/config.json")
+             if possible_path.exists():
+                 config_path = possible_path
+             else:
+                 raise FileNotFoundError(f"Config not found: {config_path}")
     
     with open(config_path, "r", encoding="utf-8") as f:
         _config = json.load(f)
