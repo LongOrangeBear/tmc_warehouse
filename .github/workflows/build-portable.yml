@@ -78,7 +78,7 @@ jobs:
               Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing -MaximumRedirection 5
               if (Test-Path $installer) { $downloaded = $true; break }
             } catch {
-              Write-Warning "Failed to download from $url: $($_.Exception.Message)"
+              Write-Warning ("Failed to download from {0}: {1}" -f $url, $_.Exception.Message)
             }
           }
 

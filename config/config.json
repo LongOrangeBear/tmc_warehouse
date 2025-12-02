@@ -10,10 +10,18 @@
         "logs": "data/logs"
     },
     "llm": {
-        "provider": "openai",
+        "provider": "chatbothub",
         "api_key": "",
         "model": "gpt-4o-mini",
         "base_url": "https://api.openai.com/v1"
+    },
+    "chatbothub": {
+        "base_url": "https://chatbothub.ru/api/v1",
+        "schema_name": "ttn/parser",
+        "bot_name": "ttn-parser",
+        "guest_id": "tmc_warehouse_client",
+        "model": "gpt-4o-mini",
+        "verify_ssl": false
     },
     "tesseract": {
         "path": "/usr/bin/tesseract",

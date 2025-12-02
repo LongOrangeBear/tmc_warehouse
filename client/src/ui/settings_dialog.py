@@ -35,6 +35,17 @@ class SettingsDialog(QDialog):
         
         layout.addWidget(cam_group)
         
+        # LLM провайдер
+        llm_group = QGroupBox("AI Провайдер")
+        llm_layout = QVBoxLayout(llm_group)
+        
+        llm_layout.addWidget(QLabel("Провайдер для распознавания:"))
+        self.llm_provider_combo = QComboBox()
+        self.llm_provider_combo.addItems(["OpenAI", "ChatBotHub"])
+        llm_layout.addWidget(self.llm_provider_combo)
+        
+        layout.addWidget(llm_group)
+        
         # Интерфейс
         ui_group = QGroupBox("Интерфейс")
         ui_layout = QVBoxLayout(ui_group)
@@ -76,6 +87,10 @@ class SettingsDialog(QDialog):
         # Mock mode (not explicitly in config yet, but we can add it)
         # For now just UI placeholder or maybe we add it to config
         
+        # LLM provider
+        llm_provider = self.config.get("llm", {}).get("provider", "openai")
+        self.llm_provider_combo.setCurrentIndex(0 if llm_provider == "openai" else 1)
+        
         # Theme
         theme = self.config.get("ui", {}).get("theme", "light")
         self.theme_combo.setCurrentIndex(0 if theme == "light" else 1)
@@ -83,6 +98,11 @@ class SettingsDialog(QDialog):
     def _save_settings(self):
         # Update config
         self.config["camera"]["default_index"] = self.camera_combo.currentData()
+        
+        # LLM provider
+        if "llm" not in self.config:
+            self.config["llm"] = {}
+        self.config["llm"]["provider"] = "openai" if self.llm_provider_combo.currentIndex() == 0 else "chatbothub"
         
         if "ui" not in self.config:
             self.config["ui"] = {}

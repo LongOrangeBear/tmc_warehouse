@@ -14,6 +14,7 @@ from pdf2image import convert_from_path
 from client.src.config import get_config
 from common.models import OCRResult, OCRItem, ReceptionItemCreate
 from client.src.services.llm_service import LLMService
+from client.src.services.chatbothub_service import ChatBotHubService
 
 logger = logging.getLogger(__name__)
 
@@ -55,11 +56,17 @@ class OCRService:
         self.psm = config["tesseract"]["psm"]
         self.poppler_path = config["poppler"]["path"]
         
-        # Инициализация LLM сервиса
+        # Определение провайдера LLM
+        self.llm_provider = config.get("llm", {}).get("provider", "openai")
+        
+        # Инициализация сервисов LLM
         self.llm_service = LLMService()
+        self.chatbothub_service = ChatBotHubService()
 
         # Настройка pytesseract
         pytesseract.pytesseract.tesseract_cmd = self.tesseract_path
+        
+        logger.info(f"OCR Service initialized with LLM provider: {self.llm_provider}")
 
     def process_document(self, file_path: Path) -> OCRResult:
         """Обработать документ."""
@@ -103,13 +110,20 @@ class OCRService:
 
     def _process_text_content(self, text: str) -> OCRResult:
         """Обработка текстового контента (LLM или Regex)."""
-        # Попытка использовать LLM
-        if self.llm_service.client:
-            logger.info("Using LLM for text parsing")
+        llm_result = None
+        
+        # Выбор провайдера LLM
+        if self.llm_provider == "chatbothub":
+            logger.info("Using ChatBotHub for text parsing")
+            llm_result = self.chatbothub_service.parse_ttn_text(text)
+        elif self.llm_service.client:
+            logger.info("Using OpenAI for text parsing")
             llm_result = self.llm_service.parse_ttn_text(text)
-            if llm_result:
-                return self._convert_llm_result(llm_result)
-            else:
+        
+        if llm_result:
+            return self._convert_llm_result(llm_result)
+        else:
+            if llm_result is not None:
                 logger.warning("LLM parsing returned empty result. Falling back to Regex.")
         
         # Fallback to Regex
@@ -118,32 +132,37 @@ class OCRService:
 
     def _process_image_content(self, file_path: Path) -> OCRResult:
         """Обработка изображения (LLM Vision или Tesseract)."""
-        # Попытка использовать LLM Vision
-        if self.llm_service.client:
-            logger.info("Using LLM Vision for image parsing")
-            # Если PDF - берем первую страницу как картинку
-            image_path = file_path
-            temp_image = None
-            
-            if file_path.suffix.lower() == ".pdf":
-                try:
-                    images = convert_from_path(str(file_path), poppler_path=self.poppler_path, first_page=1, last_page=1)
-                    if images:
-                        temp_image = file_path.parent / f"temp_vision_{file_path.stem}.jpg"
-                        images[0].save(temp_image, "JPEG")
-                        image_path = temp_image
-                except Exception as e:
-                    logger.error(f"Failed to convert PDF for Vision: {e}")
-            
-            if image_path.exists():
+        llm_result = None
+        
+        # Подготовка изображения (конвертация PDF в JPG если нужно)
+        image_path = file_path
+        temp_image = None
+        
+        if file_path.suffix.lower() == ".pdf":
+            try:
+                images = convert_from_path(str(file_path), poppler_path=self.poppler_path, first_page=1, last_page=1)
+                if images:
+                    temp_image = file_path.parent / f"temp_vision_{file_path.stem}.jpg"
+                    images[0].save(temp_image, "JPEG")
+                    image_path = temp_image
+            except Exception as e:
+                logger.error(f"Failed to convert PDF for Vision: {e}")
+        
+        # Выбор провайдера Vision
+        if image_path.exists():
+            if self.llm_provider == "chatbothub":
+                logger.info("Using ChatBotHub Vision for image parsing")
+                llm_result = self.chatbothub_service.parse_ttn_image(image_path)
+            elif self.llm_service.client:
+                logger.info("Using OpenAI Vision for image parsing")
                 llm_result = self.llm_service.parse_ttn_image(image_path)
+            
+            # Cleanup temp image
+            if temp_image and temp_image.exists():
+                temp_image.unlink()
                 
-                # Cleanup temp image
-                if temp_image and temp_image.exists():
-                    temp_image.unlink()
-                    
-                if llm_result:
-                    return self._convert_llm_result(llm_result)
+            if llm_result:
+                return self._convert_llm_result(llm_result)
             
             logger.warning("LLM Vision failed. Falling back to Tesseract.")
 

@@ -21,7 +21,7 @@ OPENAI_CONFIG = {
 
 # ChatBotHub API (новый способ)
 CHATBOTHUB_CONFIG = {
-    "base_url": "https://chatbothub.ru/api/v1",
+    "base_url": "https://localhost:8443/api/v1",
     "schema_name": "ttn/parser",
     "bot_name": "ttn-parser",
     "model": "gpt-4o-mini",
@@ -200,7 +200,8 @@ def parse_ttn_via_chatbothub(text: str) -> Dict[str, Any]:
                 "temperature": 0.1,
                 "model": CHATBOTHUB_CONFIG['model']
             },
-            timeout=30
+            timeout=30,
+            verify=False
         )
         
         response.raise_for_status()
@@ -302,9 +303,9 @@ def parse_ttn_image_via_openai(image_path: str) -> Dict[str, Any]:
 
 def parse_ttn_image_via_chatbothub(image_path: str) -> Dict[str, Any]:
     """
-    Парсинг изображения ТТН через ChatBotHub API
+    Парсинг изображения ТТН через ChatBotHub Vision API
     """
-    print(f"🔄 Парсинг изображения через ChatBotHub API: {image_path}")
+    print(f"🔄 Парсинг изображения через ChatBotHub Vision API: {image_path}")
     
     try:
         with open(image_path, 'rb') as f:
@@ -322,10 +323,9 @@ def parse_ttn_image_via_chatbothub(image_path: str) -> Dict[str, Any]:
         image_uri = f"data:{mime_type};base64,{image_data}"
         
         response = requests.post(
-            f"{CHATBOTHUB_CONFIG['base_url']}/guest/llm/generate_structured",
+            f"{CHATBOTHUB_CONFIG['base_url']}/guest/llm/generate_structured_vision",
             headers={
-                "Content-Type": "application/json",
-                "X-Guest-ID": CHATBOTHUB_CONFIG['guest_id']
+                "Content-Type": "application/json"
             },
             json={
                 "schema_name": CHATBOTHUB_CONFIG['schema_name'],
@@ -334,25 +334,52 @@ def parse_ttn_image_via_chatbothub(image_path: str) -> Dict[str, Any]:
                 "temperature": 0.1,
                 "model": CHATBOTHUB_CONFIG['model']
             },
-            timeout=60
+            timeout=60,
+            verify=False
         )
         
-        response.raise_for_status()
+        if response.status_code != 200:
+            try:
+                error_data = response.json()
+            except:
+                error_data = {"text": response.text}
+            return {
+                "success": False,
+                "error": f"HTTP {response.status_code}: {error_data}",
+                "error_type": "HTTPError",
+                "raw_response": error_data
+            }
+        
         data = response.json()
         
+        if data.get("status") == "error":
+            return {
+                "success": False,
+                "error": data.get("message", "Unknown error"),
+                "error_type": data.get("error_type", "APIError"),
+                "raw_response": data
+            }
+        
+        # Извлекаем данные из вложенной структуры
+        result_data = data.get("data", {})
+        
         return {
-            "success": data.get("status") == "success",
-            "data": data.get("data", {}).get("result", {}),
-            "tokens": data.get("data", {}).get("tokens_used", 0),
-            "guest_id": data.get("data", {}).get("guest_id"),
+            "success": True,
+            "data": result_data.get("result", {}),
+            "tokens": result_data.get("tokens_used", 0),
+            "model": result_data.get("model_name"),
+            "resolution_method": result_data.get("resolution_method"),
+            "guest_id": result_data.get("guest_id"),
             "raw_response": data
         }
         
     except Exception as e:
+        import traceback
         return {
             "success": False,
             "error": str(e),
-            "error_type": type(e).__name__
+            "error_type": type(e).__name__,
+            "traceback": traceback.format_exc()
         }
 
 
@@ -410,12 +437,116 @@ def print_result(title: str, result: Dict[str, Any]):
         print(f"\n📄 Результат:")
         print(json.dumps(result['data'], indent=2, ensure_ascii=False))
         print(f"\n🔢 Токены: {result.get('tokens', 'N/A')}")
+        if 'debug_keys' in result:
+            print(f"\n🔍 Debug - Ключи ответа: {result.get('debug_keys')}")
+            print(f"🔍 Debug - Данные (первые 500 символов): {result.get('debug_data')}")
     else:
         print("❌ Ошибка")
         print(f"Тип: {result.get('error_type', 'Unknown')}")
         print(f"Сообщение: {result.get('error', 'Unknown error')}")
         if 'traceback' in result:
             print(f"\nTraceback:\n{result['traceback']}")
+
+
+def print_detailed_comparison_table(openai_result: Dict, chatbothub_result: Dict, input_data: str):
+    """
+    Вывод детальной таблицы сравнения результатов
+    """
+    print(f"\n{'='*80}")
+    print("  📊 ДЕТАЛЬНОЕ СРАВНЕНИЕ РЕЗУЛЬТАТОВ")
+    print('='*80)
+    
+    # Исходные данные (первые 200 символов)
+    input_preview = input_data[:200].replace('\n', ' ')
+    if len(input_data) > 200:
+        input_preview += "..."
+    
+    print(f"\n📥 Входные данные ({len(input_data)} символов):")
+    print(f"   {input_preview}")
+    
+    if not openai_result['success'] or not chatbothub_result['success']:
+        print("\n❌ Невозможно построить таблицу - один из запросов завершился с ошибкой")
+        return
+    
+    openai_data = openai_result['data']
+    chatbothub_data = chatbothub_result['data']
+    
+    # Таблица сравнения основных полей
+    print(f"\n{'─'*80}")
+    print(f"{'Поле':<20} {'OpenAI':<30} {'ChatBotHub':<30}")
+    print(f"{'─'*80}")
+    
+    # Сравнение ttn_number
+    openai_ttn = openai_data.get('ttn_number', 'N/A')
+    chatbothub_ttn = chatbothub_data.get('ttn_number', 'N/A')
+    match_icon = "✅" if openai_ttn == chatbothub_ttn else "⚠️"
+    print(f"{match_icon} {'ttn_number':<18} {str(openai_ttn):<30} {str(chatbothub_ttn):<30}")
+    
+    # Сравнение ttn_date
+    openai_date = openai_data.get('ttn_date', 'N/A')
+    chatbothub_date = chatbothub_data.get('ttn_date', 'N/A')
+    match_icon = "✅" if openai_date == chatbothub_date else "⚠️"
+    print(f"{match_icon} {'ttn_date':<18} {str(openai_date):<30} {str(chatbothub_date):<30}")
+    
+    # Сравнение supplier
+    openai_supplier = openai_data.get('supplier', 'N/A')
+    chatbothub_supplier = chatbothub_data.get('supplier', 'N/A')
+    match_icon = "✅" if openai_supplier == chatbothub_supplier else "⚠️"
+    supplier_openai = str(openai_supplier)[:28] + ".." if len(str(openai_supplier)) > 30 else str(openai_supplier)
+    supplier_chatbot = str(chatbothub_supplier)[:28] + ".." if len(str(chatbothub_supplier)) > 30 else str(chatbothub_supplier)
+    print(f"{match_icon} {'supplier':<18} {supplier_openai:<30} {supplier_chatbot:<30}")
+    
+    print(f"{'─'*80}")
+    
+    # Таблица товаров
+    openai_items = openai_data.get('items', [])
+    chatbothub_items = chatbothub_data.get('items', [])
+    
+    print(f"\n📦 Товары (OpenAI: {len(openai_items)} | ChatBotHub: {len(chatbothub_items)})")
+    print(f"{'─'*80}")
+    
+    max_items = max(len(openai_items), len(chatbothub_items))
+    
+    for i in range(max_items):
+        openai_item = openai_items[i] if i < len(openai_items) else {}
+        chatbothub_item = chatbothub_items[i] if i < len(chatbothub_items) else {}
+        
+        print(f"\n  Позиция {i+1}:")
+        print(f"  {'─'*76}")
+        
+        # Артикул
+        openai_art = openai_item.get('article', 'N/A')
+        chatbothub_art = chatbothub_item.get('article', 'N/A')
+        match = "✅" if openai_art == chatbothub_art else "⚠️"
+        print(f"  {match} {'article':<16} {str(openai_art):<28} {str(chatbothub_art):<28}")
+        
+        # Наименование
+        openai_name = openai_item.get('name', 'N/A')
+        chatbothub_name = chatbothub_item.get('name', 'N/A')
+        match = "✅" if openai_name == chatbothub_name else "⚠️"
+        name_openai = str(openai_name)[:26] + ".." if len(str(openai_name)) > 28 else str(openai_name)
+        name_chatbot = str(chatbothub_name)[:26] + ".." if len(str(chatbothub_name)) > 28 else str(chatbothub_name)
+        print(f"  {match} {'name':<16} {name_openai:<28} {name_chatbot:<28}")
+        
+        # Количество
+        openai_qty = openai_item.get('quantity', 'N/A')
+        chatbothub_qty = chatbothub_item.get('quantity', 'N/A')
+        match = "✅" if openai_qty == chatbothub_qty else "⚠️"
+        print(f"  {match} {'quantity':<16} {str(openai_qty):<28} {str(chatbothub_qty):<28}")
+        
+        # Единица измерения
+        openai_unit = openai_item.get('unit', 'N/A')
+        chatbothub_unit = chatbothub_item.get('unit', 'N/A')
+        match = "✅" if openai_unit == chatbothub_unit else "⚠️"
+        print(f"  {match} {'unit':<16} {str(openai_unit):<28} {str(chatbothub_unit):<28}")
+    
+    print(f"\n{'─'*80}")
+    
+    # Метаданные
+    print(f"\n📊 Метаданные:")
+    print(f"  OpenAI     - Токены: {openai_result.get('tokens', 'N/A')}")
+    print(f"  ChatBotHub - Токены: {chatbothub_result.get('tokens', 'N/A')}, Модель: {chatbothub_result.get('model', 'N/A')}")
+    print(f"{'='*80}")
 
 
 def print_comparison(comparison: Dict[str, Any]):
@@ -479,8 +610,12 @@ def main():
     comparison = compare_results(openai_result, chatbothub_result)
     print_comparison(comparison)
     
+    # Детальная таблица сравнения для текста
+    print_detailed_comparison_table(openai_result, chatbothub_result, SAMPLE_TTN_TEXT)
+    
     # ===== ТЕСТ 2: Парсинг изображения (если файл существует) =====
-    test_image_path = Path(__file__).parent / "test_ttn_image.jpg"
+    # Используем img.png из test_data
+    test_image_path = Path(__file__).parent.parent.parent / "test_data" / "img.png"
     
     if test_image_path.exists():
         print("\n" + "="*60)
@@ -503,6 +638,9 @@ def main():
         
         img_comparison = compare_results(openai_img_result, chatbothub_img_result)
         print_comparison(img_comparison)
+        
+        # Детальная таблица сравнения для изображения
+        print_detailed_comparison_table(openai_img_result, chatbothub_img_result, f"Изображение: {test_image_path.name}")
     else:
         print(f"\n⚠️  Пропущен ТЕСТ 2: файл '{test_image_path}' не найден")
         print("   Для тестирования изображений добавьте файл test_ttn_image.jpg в tests/manual/")
