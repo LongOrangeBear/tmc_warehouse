@@ -193,6 +193,26 @@ class ReceptionRepository:
         return ReceptionRepository.get_by_id(reception_id)
 
     @staticmethod
+    def delete_by_id(reception_id: int) -> bool:
+        """Удалить приёмку по ID."""
+        reception = Reception.get_or_none(Reception.id == reception_id)
+        if not reception:
+            return False
+        
+        with database.atomic():
+            ReceptionItem.delete().where(ReceptionItem.reception == reception).execute()
+            reception.delete_instance()
+        return True
+
+    @staticmethod
+    def delete_all() -> int:
+        """Удалить все приёмки. Возвращает количество удалённых записей."""
+        with database.atomic():
+            items_deleted = ReceptionItem.delete().execute()
+            receptions_deleted = Reception.delete().execute()
+        return receptions_deleted
+
+    @staticmethod
     def _item_to_read(item: ReceptionItem) -> ReceptionItemRead:
         return ReceptionItemRead(
             id=item.id,

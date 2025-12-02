@@ -48,3 +48,19 @@ def update_control_results(
     return reception
 
 
+@router.delete("/{reception_id}", status_code=204, responses={404: {"model": APIError}})
+def delete_reception(reception_id: int):
+    """Удалить приёмку."""
+    success = ReceptionRepository.delete_by_id(reception_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Reception not found")
+    return None
+
+
+@router.delete("", status_code=200)
+def delete_all_receptions() -> dict:
+    """Удалить все приёмки."""
+    count = ReceptionRepository.delete_all()
+    return {"deleted": count}
+
+

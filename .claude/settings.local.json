@@ -10,7 +10,11 @@
       "Bash(ls:*)",
       "Bash(rg:*)",
       "Bash(true)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(for f in test_*.py)",
+      "Bash(do echo -n \"$f: \")",
+      "Bash(done)",
+      "Bash(for f in tests/test_*.py)"
     ],
     "deny": []
   }
