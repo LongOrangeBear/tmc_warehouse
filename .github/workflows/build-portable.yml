@@ -419,8 +419,9 @@ jobs:
           
           # Показать размеры
           Write-Host "`nПакет готов:"
-          Get-ChildItem $packageDir -Recurse | Measure-Object -Property Length -Sum | 
-            ForEach-Object { "Total size: {0:N2} MB" -f ($_.Sum / 1MB) }
+          $sizeBytes = (Get-ChildItem $packageDir -Recurse | Measure-Object -Property Length -Sum).Sum
+          $sizeMB = [math]::Round(($sizeBytes / 1MB), 2)
+          Write-Host ("Total size: {0} MB" -f $sizeMB)
 
       # ═══════════════════════════════════════════════════════════
       # 7. СОЗДАНИЕ АРХИВА
