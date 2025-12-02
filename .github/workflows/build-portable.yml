@@ -421,7 +421,8 @@ jobs:
           Write-Host "`nПакет готов:"
           $sizeBytes = (Get-ChildItem $packageDir -Recurse | Measure-Object -Property Length -Sum).Sum
           $sizeMB = [math]::Round(($sizeBytes / 1MB), 2)
-          Write-Host ("Total size: {0} MB" -f $sizeMB)
+          $msg = 'Total size: {0} MB' -f $sizeMB
+          Write-Host $msg
 
       # ═══════════════════════════════════════════════════════════
       # 7. СОЗДАНИЕ АРХИВА
