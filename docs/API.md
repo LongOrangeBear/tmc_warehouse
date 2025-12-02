@@ -224,3 +224,91 @@
 Ответ 200: обновлённая `ReceptionRead`.
 
 Ответ 404: если приёмка не найдена.
+
+---
+
+## 4. Скачивание файлов
+
+### 4.1. GET /receptions/{id}/document
+
+Назначение: скачать документ ТТН (PDF/изображение).
+
+Путь: `{id}` — integer.
+
+Ответ 200: файл документа (PDF, PNG, JPG).
+
+Headers:
+```
+Content-Type: application/pdf | image/png | image/jpeg
+Content-Disposition: attachment; filename="reception_{id}_document.{ext}"
+```
+
+Ответ 404: `APIError` - приёмка не найдена или документ отсутствует.
+
+---
+
+### 4.2. GET /receptions/{id}/video
+
+Назначение: скачать видео входного контроля.
+
+Путь: `{id}` — integer.
+
+Ответ 200: файл видео (AVI, MP4).
+
+Headers:
+```
+Content-Type: video/x-msvideo | video/mp4 | video/quicktime  
+Content-Disposition: attachment; filename="reception_{id}_video.{ext}"
+```
+
+Ответ 404: `APIError` - приёмка не найдена или видео отсутствует.
+
+---
+
+### 4.3. GET /receptions/{id}/items/{item_id}/photos
+
+Назначение: скачать все фотографии товара в виде ZIP архива.
+
+Путь:
+- `{id}` — reception_id (integer)
+- `{item_id}` — item_id (integer)
+
+Ответ 200: ZIP архив с фотографиями.
+
+Headers:
+```
+Content-Type: application/zip
+Content-Disposition: attachment; filename="item_{item_id}_photos.zip"
+```
+
+Структура архива:
+```
+photo_1.jpg
+photo_2.jpg
+photo_3.jpg
+...
+```
+
+Ответ 404: `APIError` - товар не найден или фото отсутствуют.
+
+---
+
+### 4.4. GET /receptions/{id}/items/{item_id}/photos/{photo_index}
+
+Назначение: скачать конкретную фотографию товара по индексу.
+
+Путь:
+- `{id}` — reception_id (integer)
+- `{item_id}` — item_id (integer)
+- `{photo_index}` — индекс фото (integer, начиная с 0)
+
+Ответ 200: изображение (JPG, PNG).
+
+Headers:
+```
+Content-Type: image/jpeg | image/png
+Content-Disposition: attachment; filename="item_{item_id}_photo_{index+1}.{ext}"
+```
+
+Ответ 404: `APIError` - товар не найден, фото отсутствуют, или индекс вне диапазона.
+

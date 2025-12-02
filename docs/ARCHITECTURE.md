@@ -67,6 +67,12 @@
   - `POST /api/v1/receptions/{id}/document` — загрузка документа.
   - `POST /api/v1/receptions/{id}/video` — загрузка видео.
 
+- `routes_downloads.py`:
+  - `GET /api/v1/receptions/{id}/document` — скачать документ.
+  - `GET /api/v1/receptions/{id}/video` — скачать видео.
+  - `GET /api/v1/receptions/{id}/items/{item_id}/photos` — скачать все фото товара (ZIP).
+  - `GET /api/v1/receptions/{id}/items/{item_id}/photos/{index}` — скачать конкретное фото.
+
 ### 2.4. main_server.py
 
 - Инициализирует FastAPI-приложение.
@@ -105,6 +111,14 @@
     - `upload_document(...)`;
     - `upload_video(...)`;
     - `send_control_results(...)`.
+
+- `llm_service.py`:
+  - Интеграция с OpenAI GPT-4o-mini для анализа документов.
+  - Методы:
+    - `parse_ttn_text(text)` — парсинг текста ТТН через LLM;
+    - `parse_ttn_image(image_path)` — распознавание изображения документа через Vision API.
+  - Используется как дополнение к Tesseract OCR для сложных случаев.
+  - Требует `OPENAI_API_KEY` в `.env` файле.
 
 ### 3.2. UI (PySide6)
 
