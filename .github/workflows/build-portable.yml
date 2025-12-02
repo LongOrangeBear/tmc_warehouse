@@ -174,53 +174,57 @@ jobs:
       - name: Build Server EXE
         shell: powershell
         run: |
-          Write-Host "Building tmc_server.exe..."
+          Write-Host 'Building tmc_server.exe...'
+
           pyinstaller `
             --onefile `
-            --name "tmc_server" `
-            --add-data "common;common" `
-            --hidden-import "peewee" `
-            --hidden-import "uvicorn.logging" `
-            --hidden-import "uvicorn.loops" `
-            --hidden-import "uvicorn.loops.auto" `
-            --hidden-import "uvicorn.protocols" `
-            --hidden-import "uvicorn.protocols.http" `
-            --hidden-import "uvicorn.protocols.http.auto" `
-            --hidden-import "uvicorn.protocols.websockets" `
-            --hidden-import "uvicorn.protocols.websockets.auto" `
-            --hidden-import "uvicorn.lifespan" `
-            --hidden-import "uvicorn.lifespan.on" `
+            --name 'tmc_server' `
+            --add-data 'common;common' `
+            --hidden-import 'peewee' `
+            --hidden-import 'uvicorn.logging' `
+            --hidden-import 'uvicorn.loops' `
+            --hidden-import 'uvicorn.loops.auto' `
+            --hidden-import 'uvicorn.protocols' `
+            --hidden-import 'uvicorn.protocols.http' `
+            --hidden-import 'uvicorn.protocols.http.auto' `
+            --hidden-import 'uvicorn.protocols.websockets' `
+            --hidden-import 'uvicorn.protocols.websockets.auto' `
+            --hidden-import 'uvicorn.lifespan' `
+            --hidden-import 'uvicorn.lifespan.on' `
             --console `
             server/src/main_server.py
-          
-          if (Test-Path "dist\tmc_server.exe") {
-            Write-Host "✓ Server EXE built successfully"
+
+          $serverExe = Join-Path 'dist' 'tmc_server.exe'
+          if (Test-Path $serverExe) {
+            Write-Host '✓ Server EXE built successfully'
           } else {
-            Write-Error "Failed to build server EXE"
+            Write-Error 'Failed to build server EXE'
             exit 1
           }
 
       - name: Build Client EXE
         shell: powershell
         run: |
-          Write-Host "Building tmc_client.exe..."
+          Write-Host 'Building tmc_client.exe...'
+
           pyinstaller `
             --onefile `
             --windowed `
-            --name "tmc_client" `
-            --add-data "common;common" `
-            --hidden-import "PySide6.QtCore" `
-            --hidden-import "PySide6.QtGui" `
-            --hidden-import "PySide6.QtWidgets" `
-            --hidden-import "cv2" `
-            --hidden-import "pytesseract" `
-            --hidden-import "pdf2image" `
+            --name 'tmc_client' `
+            --add-data 'common;common' `
+            --hidden-import 'PySide6.QtCore' `
+            --hidden-import 'PySide6.QtGui' `
+            --hidden-import 'PySide6.QtWidgets' `
+            --hidden-import 'cv2' `
+            --hidden-import 'pytesseract' `
+            --hidden-import 'pdf2image' `
             client/src/main_client.py
-          
-          if (Test-Path "dist\tmc_client.exe") {
-            Write-Host "✓ Client EXE built successfully"
+
+          $clientExe = Join-Path 'dist' 'tmc_client.exe'
+          if (Test-Path $clientExe) {
+            Write-Host '✓ Client EXE built successfully'
           } else {
-            Write-Error "Failed to build client EXE"
+            Write-Error 'Failed to build client EXE'
             exit 1
           }
 
