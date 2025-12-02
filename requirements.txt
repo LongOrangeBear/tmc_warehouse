@@ -35,6 +35,9 @@ pydantic==2.6.0
 python-dateutil==2.8.2
 python-json-logger==2.0.7
 
+# LLM Provider
+openai>=1.43.0,<2.0.0
+
 # ============================================
 # Development Dependencies (optional)
 # Раскомментируйте для разработки/тестирования
