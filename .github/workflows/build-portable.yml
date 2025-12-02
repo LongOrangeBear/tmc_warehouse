@@ -71,7 +71,7 @@ jobs:
           
           # Копируем только нужное (без установщика)
           New-Item -ItemType Directory -Force -Path "portable\Tesseract-OCR"
-          Copy-Item -Path "tesseract-temp\*" -Destination "portable\Tesseract-OCR\" -Recurse
+          Copy-Item -Path "tesseract-temp\*" -Destination "portable\Tesseract-OCR" -Recurse
           
           # Проверка
           if (Test-Path "portable\Tesseract-OCR\tesseract.exe") {
@@ -101,7 +101,7 @@ jobs:
           
           # Копируем только Library (бинарники)
           New-Item -ItemType Directory -Force -Path "portable\poppler"
-          Copy-Item -Path "poppler-temp\poppler-${{ env.POPPLER_VERSION }}\Library\*" -Destination "portable\poppler\" -Recurse
+          Copy-Item -Path "poppler-temp\poppler-${{ env.POPPLER_VERSION }}\Library\*" -Destination "portable\poppler" -Recurse
           
           # Проверка
           if (Test-Path "portable\poppler\bin\pdftoppm.exe") {
