@@ -50,3 +50,6 @@ dist/
 portable/
 tesseract-temp/
 poppler-temp/
+
+CLAUDE.md
+/docs/TMC_WAREHOUSE_PROMPT_V2.md
