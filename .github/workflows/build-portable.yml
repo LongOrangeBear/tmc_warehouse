@@ -65,7 +65,7 @@ jobs:
           $destDir = Join-Path $PWD "portable\Tesseract-OCR"
           New-Item -ItemType Directory -Force -Path $destDir | Out-Null
 
-          # Try multiple sources to avoid 403/Forbidden
+          # Try multiple sources to avoid 403/Forbidden and HTML downloads
           $urls = @(
             "https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe",
             "https://sourceforge.net/projects/tesseract-ocr-alt/files/Setup%20-%20UB%20Mannheim/Tesseract-${{ env.TESSERACT_VERSION }}/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe/download"
@@ -75,17 +75,37 @@ jobs:
           foreach ($url in $urls) {
             try {
               Write-Host "Trying URL: $url"
-              Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing -MaximumRedirection 5
-              if (Test-Path $installer) { $downloaded = $true; break }
+              if (Test-Path $installer) { Remove-Item -Force $installer }
+              # Use curl to follow redirects and fail on HTTP errors
+              $curl = "curl.exe"
+              & $curl -L --fail -o $installer $url
+              if (Test-Path $installer) {
+                $size = (Get-Item $installer).Length
+                if ($size -gt 5000000) { # > ~5MB indicates likely valid binary
+                  $downloaded = $true
+                  break
+                } else {
+                  Write-Warning ("Downloaded file too small ({0} bytes) from {1}" -f $size, $url)
+                }
+              }
             } catch {
               Write-Warning ("Failed to download from {0}: {1}" -f $url, $_.Exception.Message)
             }
           }
 
           if ($downloaded) {
-            # Silent install into a temp folder under the current workspace
-            Start-Process -FilePath $installer -ArgumentList "/S", "/D=$tempDir" -Wait
-            Copy-Item -Path (Join-Path $tempDir '*') -Destination $destDir -Recurse
+            try {
+              # Silent install into a temp folder under the current workspace
+              Start-Process -FilePath $installer -ArgumentList "/S", "/D=$tempDir" -Wait
+              Copy-Item -Path (Join-Path $tempDir '*') -Destination $destDir -Recurse
+            } catch {
+              Write-Warning ("Installer failed, falling back to Chocolatey: {0}" -f $_.Exception.Message)
+              choco install tesseract -y
+              $chocoPath = "C:\Program Files\Tesseract-OCR"
+              if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
+              if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
+              Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse
+            }
           } else {
             Write-Warning "Falling back to Chocolatey installation of Tesseract"
             choco install tesseract -y
