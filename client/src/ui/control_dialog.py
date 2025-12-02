@@ -2,6 +2,7 @@
 from pathlib import Path
 from typing import List, Optional
 
+import os
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QListWidget, QStackedWidget,
@@ -215,7 +216,12 @@ class ControlDialog(QDialog):
             
         if self.pending_items:
             self.items_list.setCurrentRow(0)
-            self.camera_service.start_preview()
+            # В тестовой среде не запускаем реальную камеру, используем MOCK
+            test_env = os.getenv("CI") == "true" or os.getenv("QT_QPA_PLATFORM") == "offscreen"
+            if test_env:
+                self.camera_service.start_preview(camera_index=-1)
+            else:
+                self.camera_service.start_preview()
         else:
             QMessageBox.information(self, "Готово", "Все позиции проверены")
             self.accept()
@@ -394,5 +400,7 @@ class ControlDialog(QDialog):
             self.accept()
 
     def closeEvent(self, event):
-        self.camera_service.stop_preview()
-        super().closeEvent(event)
+        try:
+            self.camera_service.stop_preview()
+        finally:
+            super().closeEvent(event)
