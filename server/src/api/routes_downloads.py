@@ -154,13 +154,12 @@ def download_item_photos(reception_id: int, item_id: int):
             else:
                 logger.warning(f"Photo file not found: {photo_path}")
     
-    # Проверить что хоть что-то добавили
     zip_buffer.seek(0)
-    if zip_buffer.tell() == 0:
+    zip_size = len(zip_buffer.getvalue())
+    
+    if zip_size == 0:
         logger.error(f"No valid photos found for item {item_id}")
         raise HTTPException(status_code=404, detail="No valid photo files found")
-    
-    zip_buffer.seek(0)
     
     logger.info(f"Sending ZIP archive for item {item_id} ({len(photo_paths)} photos)")
     

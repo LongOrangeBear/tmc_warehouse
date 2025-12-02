@@ -90,15 +90,8 @@ class DocumentDialog(QDialog):
         self.video_widget.setMinimumHeight(300)
         video_layout.addWidget(self.video_widget, 0, Qt.AlignCenter)
         
-        # Индикатор записи
-        self.recording_indicator = QLabel("")
-        self.recording_indicator.setAlignment(Qt.AlignCenter)
-        self.recording_indicator.setStyleSheet(
-            "background-color: #ff4444; color: white; font-weight: bold; "
-            "padding: 5px; border-radius: 3px;"
-        )
-        self.recording_indicator.hide()
-        video_layout.addWidget(self.recording_indicator)
+        # Индикатор записи (удален, теперь внутри VideoWidget)
+        # self.recording_indicator = QLabel("") ...
         
         self.content_tabs.addTab(video_tab, "📹 Видео")
         
@@ -119,7 +112,7 @@ class DocumentDialog(QDialog):
         
         left_vertical_splitter.addWidget(self.content_tabs)
         
-        # --- НИЗ ЛЕВОЙ КОЛОНКИ: Таблица позиций ---
+        # --- НИЖНЯЯ ЛЕВАЯ КОЛОНКА: Таблица позиций ---
         table_container = QGroupBox("Позиции")
         table_layout = QVBoxLayout(table_container)
         
@@ -177,29 +170,70 @@ class DocumentDialog(QDialog):
         self.verification_panel.setStyleSheet("QGroupBox { font-weight: bold; padding: 10px; border: 2px solid #ccc; border-radius: 5px; }")
         verification_layout = QVBoxLayout(self.verification_panel)
         
-        # Информация о товаре
+        # Создаем ScrollArea для контента проверки
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QScrollArea.NoFrame)
+        
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 1. Информация о товаре
         self.product_info_label = QLabel("Выберите товар в таблице")
         self.product_info_label.setWordWrap(True)
         self.product_info_label.setStyleSheet("padding: 10px; background: #f5f5f5; border-radius: 5px;")
-        verification_layout.addWidget(self.product_info_label)
+        scroll_layout.addWidget(self.product_info_label)
         
-        # Инструкции
-        verification_layout.addWidget(QLabel("<b>Что проверить:</b>"))
+        # 2. Инструкции
+        scroll_layout.addWidget(QLabel("<b>Что проверить:</b>"))
         self.instructions_label = QLabel("")
         self.instructions_label.setWordWrap(True)
         self.instructions_label.setStyleSheet("padding: 10px; background: #fffacd; border-radius: 5px;")
-        verification_layout.addWidget(self.instructions_label)
+        scroll_layout.addWidget(self.instructions_label)
         
-        verification_layout.addStretch()
+        # 3. Фото товара (Кликабельное)
+        scroll_layout.addWidget(QLabel("<b>Фото товара:</b>"))
+        self.photo_preview_label = QLabel()
+        self.photo_preview_label.setAlignment(Qt.AlignCenter)
+        self.photo_preview_label.setFixedSize(200, 200) # Немного увеличим
+        self.photo_preview_label.setStyleSheet("""
+            QLabel {
+                border: 2px dashed #ccc;
+                border-radius: 5px;
+                background: #f9f9f9;
+            }
+            QLabel:hover {
+                border-color: #2196F3;
+                background: #e3f2fd;
+            }
+        """)
+        self.photo_preview_label.setText("📷\nНажмите, чтобы\nсделать фото")
+        self.photo_preview_label.setWordWrap(True)
+        self.photo_preview_label.setCursor(Qt.PointingHandCursor)
+        # Обработка клика теперь будет в _on_photo_clicked
+        self.photo_preview_label.mousePressEvent = self._on_photo_clicked 
+        self.current_photo_path = None
         
-        # Поле для комментария
-        verification_layout.addWidget(QLabel("<b>Комментарий:</b>"))
+        # Центрируем фото
+        photo_container = QHBoxLayout()
+        photo_container.addStretch()
+        photo_container.addWidget(self.photo_preview_label)
+        photo_container.addStretch()
+        scroll_layout.addLayout(photo_container)
+        
+        # 4. Комментарий (под фото)
+        scroll_layout.addWidget(QLabel("<b>Комментарий:</b>"))
         self.comment_edit = QTextEdit()
-        self.comment_edit.setMaximumHeight(60)
+        self.comment_edit.setMaximumHeight(80)
         self.comment_edit.setPlaceholderText("Опишите причину, если товар не принят...")
-        verification_layout.addWidget(self.comment_edit)
+        scroll_layout.addWidget(self.comment_edit)
         
-        # Кнопки проверки (принять/отклонить)
+        scroll_layout.addStretch()
+        scroll_area.setWidget(scroll_content)
+        verification_layout.addWidget(scroll_area)
+        
+        # Кнопки проверки (принять/отклонить) - ВНИЗУ, вне скролла
         buttons_layout = QHBoxLayout()
         
         self.mark_verified_btn = QPushButton("✓ Принять")
@@ -215,34 +249,6 @@ class DocumentDialog(QDialog):
         buttons_layout.addWidget(self.mark_verified_btn)
         buttons_layout.addWidget(self.mark_rejected_btn)
         
-        # Кнопка фото
-        self.take_photo_btn = QPushButton("📷 Сделать фото")
-        self.take_photo_btn.clicked.connect(self._take_photo)
-        self.take_photo_btn.setEnabled(False)
-        self.take_photo_btn.setStyleSheet("padding: 10px; font-weight: bold;")
-        
-        # Превью фото
-        self.photo_preview_label = QLabel()
-        self.photo_preview_label.setAlignment(Qt.AlignCenter)
-        self.photo_preview_label.setFixedSize(150, 150)
-        self.photo_preview_label.setStyleSheet("""
-            border: 2px dashed #ccc;
-            border-radius: 5px;
-            background: #f9f9f9;
-        """)
-        self.photo_preview_label.setText("📷\nНет фото")
-        self.photo_preview_label.setWordWrap(True)
-        self.photo_preview_label.mousePressEvent = self._enlarge_photo
-        self.photo_preview_label.setCursor(Qt.PointingHandCursor)
-        self.current_photo_path = None
-        
-        # Layout для фото
-        photo_layout = QVBoxLayout()
-        photo_layout.addWidget(QLabel("<b>Фото товара:</b>"))
-        photo_layout.addWidget(self.photo_preview_label)
-        photo_layout.addWidget(self.take_photo_btn)
-        
-        verification_layout.addLayout(photo_layout)
         verification_layout.addLayout(buttons_layout)
         
         right_layout.addWidget(self.verification_panel)
@@ -620,18 +626,19 @@ class DocumentDialog(QDialog):
             self.instructions_label.setText("")
             self.mark_verified_btn.setEnabled(False)
             self.mark_rejected_btn.setEnabled(False)
-            self.take_photo_btn.setEnabled(False)
             
             # Сброс превью
             self.current_photo_path = None
             self.photo_preview_label.setText("📷\nНет фото")
             self.photo_preview_label.setToolTip("")
+            self.photo_preview_label.setCursor(Qt.ArrowCursor)
             return
         
         # Кнопки всегда видны, но их доступность управляется ниже
         self.mark_verified_btn.setEnabled(True)
         self.mark_rejected_btn.setEnabled(True)
-        self.take_photo_btn.setEnabled(True)
+        self.photo_preview_label.setCursor(Qt.PointingHandCursor)
+        self.photo_preview_label.setToolTip("Нажмите, чтобы сделать фото")
             
         row = selected_rows[0].row()
         items = self.results_widget.get_items()
@@ -711,14 +718,12 @@ class DocumentDialog(QDialog):
             if product.control_type:
                 # Работаем со строкой напрямую (не enum)
                 control_type_str = product.control_type if isinstance(product.control_type, str) else product.control_type.value
-                control_type_ru = control_type_names.get(control_type_str, control_type_str)
-                instructions.append(f"<b>Тип контроля:</b> {control_type_ru}")
-                instructions.append("")
+                control_name = control_type_names.get(control_type_str, control_type_str)
+                instructions.append(f"<b>Тип контроля:</b> {control_name}")
             
             # Показать параметры проверки
             if product.control_params:
                 instructions.append("<b>Необходимые проверки:</b>")
-                instructions.append("")
                 
                 # Если есть готовые инструкции - показать их первыми
                 if "instructions" in product.control_params:
@@ -728,7 +733,6 @@ class DocumentDialog(QDialog):
                     for line in step_instructions.split("\n"):
                         if line.strip():
                             instructions.append(line)
-                    instructions.append("")
                 
                 # Показать остальные параметры
                 # Словарь переводов параметров
@@ -760,64 +764,39 @@ class DocumentDialog(QDialog):
                         instructions.append(f"• {param_ru}: {value}")
                     elif isinstance(value, str):
                         instructions.append(f"• <b>{param_ru}:</b> {value}")
-            else:
-                instructions.append("Нет специальных требований")
+            
+
         else:
             instructions.append("<b>Стандартная проверка:</b>")
-            instructions.append("")
             instructions.append("1. Проверьте внешний вид упаковки")
             instructions.append("2. Убедитесь в отсутствии повреждений")
             instructions.append("3. Сверьте количество с документом")
         
         self.instructions_label.setText("<br>".join(instructions))
         
-        # Загрузка фото, если есть
-        self.current_photo_path = None
-        if is_verified and 'photos' in self.verified_items[item_uuid] and self.verified_items[item_uuid]['photos']:
-            # Берем последнее фото (так как мы перезаписываем)
-            photo_path = self.verified_items[item_uuid]['photos'][-1]
-            if os.path.exists(photo_path):
-                self.current_photo_path = photo_path
-                pixmap = QPixmap(photo_path)
-                scaled = pixmap.scaled(
-                    self.photo_preview_label.size(), 
-                    Qt.KeepAspectRatio, 
-                    Qt.SmoothTransformation
-                )
-                self.photo_preview_label.setPixmap(scaled)
+        # Загрузить данные проверки, если есть
+        if is_verified:
+            data = self.verified_items[item_uuid]
+            self.comment_edit.setText(data.get('comment', ''))
+            
+            # Загрузить фото
+            photos = data.get('photos', [])
+            if photos:
+                self.current_photo_path = photos[0]
+                pixmap = QPixmap(self.current_photo_path)
+                self.photo_preview_label.setPixmap(pixmap.scaled(
+                    150, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                ))
                 self.photo_preview_label.setToolTip("Нажмите для увеличения")
             else:
-                self.photo_preview_label.setText("📷\nФайл не найден")
+                self.current_photo_path = None
+                self.photo_preview_label.setText("📷\nНет фото")
+                self.photo_preview_label.setToolTip("Нажмите, чтобы сделать фото")
         else:
-            self.photo_preview_label.setText("📷\nНет фото")
-            self.photo_preview_label.setToolTip("")
-        
-        # Кнопки проверки
-        if is_verified:
-            verified_data = self.verified_items.get(item_uuid, {})
-            status = verified_data.get('status', 'accepted')
-            
-            if status == 'accepted':
-                self.mark_verified_btn.setText("✓ Принято")
-                self.mark_rejected_btn.setText("✗ Не принимать")
-            else:
-                self.mark_verified_btn.setText("✓ Принять")
-                self.mark_rejected_btn.setText("✗ Отклонено")
-            
-            self.mark_verified_btn.setEnabled(False)
-            self.mark_rejected_btn.setEnabled(False)
-            self.comment_edit.setEnabled(False)
-            
-            # Показать сохраненный комментарий
-            comment = verified_data.get('comment', '')
-            self.comment_edit.setText(comment)
-        else:
-            self.mark_verified_btn.setText("✓ Принять")
-            self.mark_rejected_btn.setText("✗ Не принимать")
-            self.mark_verified_btn.setEnabled(True)
-            self.mark_rejected_btn.setEnabled(True)
-            self.comment_edit.setEnabled(True)
             self.comment_edit.clear()
+            self.current_photo_path = None
+            self.photo_preview_label.setText("📷\nНет фото")
+            self.photo_preview_label.setToolTip("Нажмите, чтобы сделать фото")
     
     def _mark_verified(self, accepted: bool):
         """Отметить текущий товар как проверенный (принято/отклонено)."""
@@ -879,11 +858,7 @@ class DocumentDialog(QDialog):
         if all_verified and len(items_with_uuids) > 0:
             if self.camera_service.is_recording():
                 self.camera_service.stop_recording()
-                self.recording_indicator.setText("✓ ЗАПИСЬ ЗАВЕРШЕНА")
-                self.recording_indicator.setStyleSheet(
-                    "background-color: #4CAF50; color: white; font-weight: bold; "
-                    "padding: 5px; border-radius: 3px;"
-                )
+                self.video_widget.show_status("✓ ЗАПИСЬ ЗАВЕРШЕНА", "#4CAF50")
                 self.blink_timer.stop()
             
             QMessageBox.information(self, "Готово", "Все товары проверены! Можно отправить на сервер.")
@@ -938,6 +913,17 @@ class DocumentDialog(QDialog):
             logger.error(f"Error saving photo: {e}")
             QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить фото: {e}")
 
+    def _on_photo_clicked(self, event):
+        """Обработка клика по фото: сделать фото или увеличить."""
+        # Если товар не выбран, ничего не делаем
+        if not self.results_widget.selectionModel().selectedRows():
+            return
+            
+        if self.current_photo_path and os.path.exists(self.current_photo_path):
+            self._enlarge_photo(event)
+        else:
+            self._take_photo()
+
     def _enlarge_photo(self, event):
         """Увеличить фото по клику."""
         if not self.current_photo_path or not os.path.exists(self.current_photo_path):
@@ -971,9 +957,18 @@ class DocumentDialog(QDialog):
         
         layout.addWidget(scroll)
         
+        # Кнопка для удаления/пересъемки фото
+        actions_layout = QHBoxLayout()
+        
+        retake_btn = QPushButton("📷 Переснять")
+        retake_btn.clicked.connect(lambda: [dialog.close(), self._take_photo()])
+        actions_layout.addWidget(retake_btn)
+        
         close_btn = QPushButton("Закрыть")
         close_btn.clicked.connect(dialog.accept)
-        layout.addWidget(close_btn)
+        actions_layout.addWidget(close_btn)
+        
+        layout.addLayout(actions_layout)
         
         dialog.exec()
 
@@ -1039,17 +1034,17 @@ class DocumentDialog(QDialog):
             self.camera_service.stop_preview()
             self.camera_active = False
             self.blink_timer.stop()
-            self.recording_indicator.hide()
+            self.video_widget.hide_status()
             logger.info("Camera stopped")
     
     def _on_recording_started(self):
         """Обработка начала записи."""
-        self.recording_indicator.setText("● ИДЕТ ЗАПИСЬ")
-        self.recording_indicator.show()
-        self.blink_timer.start(500)  # Мигать каждые 500 мс
-        
-        # Показать информацию о записи на видео
+        logger.info("Recording started")
         self.video_widget.start_recording_info()
+        self.video_widget.show_status("🔴 ИДЕТ ЗАПИСЬ", "red")
+        
+        self.blink_timer.start(1000)
+        self.blink_state = True
     
     def _on_recording_stopped(self, path: str):
         """Обработка остановки записи."""
@@ -1058,31 +1053,23 @@ class DocumentDialog(QDialog):
         
         # Скрыть информацию о записи
         self.video_widget.stop_recording_info()
+        self.video_widget.show_status("⏹ ЗАПИСЬ ОСТАНОВЛЕНА", "gray")
+        self.blink_timer.stop()
     
     def _on_recording_limit_exceeded(self, message: str):
         """Обработка превышения лимита записи."""
         logger.info(f"Recording limit exceeded: {message}")
         self.video_widget.show_limit_exceeded(message)
         self.blink_timer.stop()
-        self.recording_indicator.setText("● ЗАПИСЬ ОСТАНОВЛЕНА (ЛИМИТ)")
-        self.recording_indicator.setStyleSheet(
-            "background-color: #ff8800; color: white; font-weight: bold; "
-            "padding: 5px; border-radius: 3px;"
-        )
+        self.video_widget.show_status("🔴 ЗАПИСЬ ОСТАНОВЛЕНА (ЛИМИТ)", "#ff8800")
     
     def _blink_recording_indicator(self):
         """Мигание индикатора записи."""
         self.blink_state = not self.blink_state
         if self.blink_state:
-            self.recording_indicator.setStyleSheet(
-                "background-color: #ff4444; color: white; font-weight: bold; "
-                "padding: 5px; border-radius: 3px;"
-            )
+            self.video_widget.show_status("🔴 ИДЕТ ЗАПИСЬ", "red")
         else:
-            self.recording_indicator.setStyleSheet(
-                "background-color: #880000; color: white; font-weight: bold; "
-                "padding: 5px; border-radius: 3px;"
-            )
+            self.video_widget.show_status("🔴 ИДЕТ ЗАПИСЬ", "#800000") # Dark red
     
     def closeEvent(self, event):
         """Остановить камеру при закрытии."""

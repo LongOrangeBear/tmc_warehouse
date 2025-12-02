@@ -3,7 +3,14 @@
     "allow": [
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(python3 -m py_compile:*)"
+      "Bash(python3 -m py_compile:*)",
+      "Bash(sqlite3:*)",
+      "Bash(source:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)",
+      "Bash(rg:*)",
+      "Bash(true)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

@@ -25,7 +25,7 @@ class VideoWidget(QWidget):
         self.limit_exceeded = False
         self.limit_message = ""
         
-        # Overlay label для информации
+        # Overlay label для информации (слева сверху)
         self.info_label = QLabel(self)
         self.info_label.setStyleSheet("""
             QLabel {
@@ -39,6 +39,22 @@ class VideoWidget(QWidget):
         """)
         self.info_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.info_label.hide()
+        
+        # Overlay label для статуса (справа сверху)
+        self.status_label = QLabel(self)
+        self.status_label.setStyleSheet("""
+            QLabel {
+                background-color: rgba(255, 0, 0, 200);
+                color: white;
+                padding: 8px 12px;
+                font-family: sans-serif;
+                font-size: 12px;
+                font-weight: bold;
+                border-radius: 4px;
+            }
+        """)
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.hide()
         
         # Overlay для сообщения о превышении лимита
         self.limit_label = QLabel(self)
@@ -124,7 +140,7 @@ class VideoWidget(QWidget):
         self.limit_label.hide()
         self.update_timer.start(1000)
         self._update_info()
-        self._position_info_label()
+        self._position_overlays()
     
     def stop_recording_info(self):
         """Остановить отображение информации о записи."""
@@ -164,13 +180,42 @@ class VideoWidget(QWidget):
         
         info_text = f"📅 {start_datetime_str}\n⏱ {time_str}\n💾 {size_str}"
         self.info_label.setText(info_text)
+        self._position_overlays()
+
+    def show_status(self, text: str, color: str = "red"):
+        """Показать статус (например, запись)."""
+        self.status_label.setText(text)
+        self.status_label.setStyleSheet(f"""
+            QLabel {{
+                background-color: {color};
+                color: white;
+                padding: 8px 12px;
+                font-family: sans-serif;
+                font-size: 12px;
+                font-weight: bold;
+                border-radius: 4px;
+            }}
+        """)
+        self.status_label.show()
+        self._position_overlays()
+
+    def hide_status(self):
+        """Скрыть статус."""
+        self.status_label.hide()
     
-    def _position_info_label(self):
-        """Позиционировать overlay в правом верхнем углу."""
-        self.info_label.adjustSize()
-        x = self.width() - self.info_label.width() - 10
-        y = 10
-        self.info_label.move(x, y)
+    def _position_overlays(self):
+        """Позиционировать оверлеи."""
+        # Info label - слева сверху
+        if self.info_label.isVisible():
+            self.info_label.adjustSize()
+            self.info_label.move(10, 10)
+            
+        # Status label - справа сверху
+        if self.status_label.isVisible():
+            self.status_label.adjustSize()
+            x = self.width() - self.status_label.width() - 10
+            y = 10
+            self.status_label.move(x, y)
         
         # Позиционировать limit_label по центру
         if self.limit_label.isVisible():
@@ -201,7 +246,7 @@ class VideoWidget(QWidget):
         self.limit_message = message
         self.limit_label.setText(message)
         self.limit_label.show()
-        self._position_info_label()
+        self._position_overlays()
     
     def is_limit_exceeded(self) -> bool:
         """Проверить превышен ли лимит."""
@@ -210,7 +255,6 @@ class VideoWidget(QWidget):
     def resizeEvent(self, event):
         """Обработка изменения размера."""
         super().resizeEvent(event)
-        if self.info_label.isVisible() or self.limit_label.isVisible():
-            self._position_info_label()
+        self._position_overlays()
         if self.current_image:
             self._update_display()

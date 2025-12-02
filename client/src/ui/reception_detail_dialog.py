@@ -92,16 +92,16 @@ class ReceptionDetailDialog(QDialog):
         details_layout.addWidget(QLabel("<b>Фотографии:</b>"))
         
         # Скроллируемая область для фото
-        photos_scroll = QScrollArea()
-        photos_scroll.setWidgetResizable(True)
-        photos_scroll.setMinimumHeight(200)
+        self.photos_scroll = QScrollArea()
+        self.photos_scroll.setWidgetResizable(True)
+        self.photos_scroll.setMinimumHeight(200)
         
         self.photos_widget = QLabel("Нет фотографий")
         self.photos_widget.setAlignment(Qt.AlignCenter)
         self.photos_widget.setStyleSheet("border: 1px solid #ccc; background: #f9f9f9; padding: 10px;")
-        photos_scroll.setWidget(self.photos_widget)
+        self.photos_scroll.setWidget(self.photos_widget)
         
-        details_layout.addWidget(photos_scroll)
+        details_layout.addWidget(self.photos_scroll)
         
         # Кнопки для работы с фото
         photo_buttons = QHBoxLayout()
@@ -220,7 +220,7 @@ class ReceptionDetailDialog(QDialog):
         if not selected_rows or not self.reception:
             self.comments_text.clear()
             self.comments_text.setPlaceholderText("Выберите товар в таблице...")
-            self.photos_widget.setText("Нет фотографий")
+            self._show_no_photos("Нет фотографий")
             self.download_photos_btn.setEnabled(False)
             return
         
@@ -236,7 +236,6 @@ class ReceptionDetailDialog(QDialog):
         
         # Показать фотографии
         if item.photos:
-            # photos - это JSON список путей
             import json
             try:
                 if isinstance(item.photos, str):
@@ -248,25 +247,33 @@ class ReceptionDetailDialog(QDialog):
                     self._display_photos(photo_paths, item.id)
                     self.download_photos_btn.setEnabled(True)
                 else:
-                    self.photos_widget.setText("Нет фотографий")
+                    self._show_no_photos("Нет фотографий")
                     self.download_photos_btn.setEnabled(False)
             except Exception as e:
                 logger.error(f"Error parsing photos: {e}")
-                self.photos_widget.setText(f"Ошибка загрузки фото: {e}")
+                self._show_no_photos(f"Ошибка загрузки фото: {e}")
                 self.download_photos_btn.setEnabled(False)
         else:
-            self.photos_widget.setText("Нет фотографий")
+            self._show_no_photos("Нет фотографий")
             self.download_photos_btn.setEnabled(False)
+    
+    def _show_no_photos(self, text: str):
+        """Показать сообщение об отсутствии фотографий."""
+        placeholder = QLabel(text)
+        placeholder.setAlignment(Qt.AlignCenter)
+        placeholder.setStyleSheet("border: 1px solid #ccc; background: #f9f9f9; padding: 10px;")
+        self.photos_scroll.setWidget(placeholder)
+        self.photos_widget = placeholder
     
     def _display_photos(self, photo_paths: list, item_id: int):
         """Отобразить фотографии товара."""
+        from PySide6.QtWidgets import QWidget, QHBoxLayout
+        
         count = len(photo_paths)
         
-        # Создать временную директорию для фото
         temp_dir = Path(tempfile.gettempdir()) / f"tmc_photos_{item_id}"
         temp_dir.mkdir(exist_ok=True)
         
-        # Скачать фотографии
         downloaded_count = 0
         for i, photo_rel_path in enumerate(photo_paths):
             try:
@@ -282,11 +289,9 @@ class ReceptionDetailDialog(QDialog):
                 logger.error(f"Failed to download photo {i}: {e}")
         
         if downloaded_count > 0:
-            # Показать превью фотографий (упрощенная версия)
-            from PySide6.QtWidgets import QHBoxLayout
-            from PySide6.QtCore import Qt
-            
-            layout = QHBoxLayout()
+            photos_container = QWidget()
+            photos_layout = QHBoxLayout(photos_container)
+            photos_layout.setContentsMargins(5, 5, 5, 5)
             
             for i in range(downloaded_count):
                 photo_path = temp_dir / f"photo_{i}.jpg"
@@ -302,17 +307,14 @@ class ReceptionDetailDialog(QDialog):
                         label.setPixmap(scaled)
                         label.setToolTip(f"Фото {i+1}/{count}")
                         label.setStyleSheet("border: 2px solid #ddd; padding: 2px;")
-                        layout.addWidget(label)
+                        photos_layout.addWidget(label)
             
-            layout.addStretch()
+            photos_layout.addStretch()
             
-            # Очистить старый виджет и установить layout
-            old_widget = self.photos_widget
-            self.photos_widget = QLabel()
-            self.photos_widget.setLayout(layout)
-            old_widget.parent().layout().replaceWidget(old_widget, self.photos_widget)
+            self.photos_scroll.setWidget(photos_container)
+            self.photos_widget = photos_container
         else:
-            self.photos_widget.setText(f"❌ Не удалось загрузить фотографии ({count} доступно)")
+            self._show_no_photos(f"❌ Не удалось загрузить фотографии ({count} доступно)")
     
     def _download_photos(self):
         """Скачать все фотографии выбранного товара."""
