@@ -439,7 +439,8 @@ jobs:
           
           if (Test-Path "dist\$zipName") {
             $size = (Get-Item "dist\$zipName").Length / 1MB
-            Write-Host "Archive created successfully: {0:N2} MB" -f $size
+            $sizeFormatted = "{0:N2}" -f $size
+            Write-Host "Archive created successfully: $sizeFormatted MB"
           } else {
             Write-Error "Failed to create archive"
             exit 1
