@@ -55,84 +55,85 @@ jobs:
       # ═══════════════════════════════════════════════════════════
       # 3. СКАЧИВАНИЕ TESSERACT (PORTABLE)
       # ═══════════════════════════════════════════════════════════
-      - name: Download Tesseract Portable
-        shell: powershell
-        run: |
-          Write-Host "Downloading Tesseract ${{ env.TESSERACT_VERSION }}..."
-
-          $installer = "tesseract-installer.exe"
-          $tempDir = Join-Path $PWD "tesseract-temp"
-          $destDir = Join-Path $PWD "portable\Tesseract-OCR"
-          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
-
-          # Try multiple sources to avoid 403/Forbidden and HTML downloads
-          $urls = @(
-            "https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe",
-            "https://sourceforge.net/projects/tesseract-ocr-alt/files/Setup%20-%20UB%20Mannheim/Tesseract-${{ env.TESSERACT_VERSION }}/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe/download"
-          )
-
-          $downloaded = $false
-          foreach ($url in $urls) {
-            try {
-              Write-Host "Trying URL: $url"
-              if (Test-Path $installer) { Remove-Item -Force $installer }
-              # Use curl to follow redirects and fail on HTTP errors
-              $curl = "curl.exe"
-              & $curl -L --fail -o $installer $url
-              if (Test-Path $installer) {
-                $size = (Get-Item $installer).Length
-                if ($size -gt 5000000) { # > ~5MB indicates likely valid binary
-                  $downloaded = $true
-                  break
-                } else {
-                  Write-Warning ("Downloaded file too small ({0} bytes) from {1}" -f $size, $url)
-                }
-              }
-            } catch {
-              Write-Warning ("Failed to download from {0}: {1}" -f $url, $_.Exception.Message)
-            }
-          }
-
-          if ($downloaded) {
-            try {
-              # Prepare temp directory
-              if (Test-Path $tempDir) { Remove-Item -Recurse -Force $tempDir }
-              New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
-
-              # Silent install into a temp folder under the current workspace
-              Start-Process -FilePath $installer -ArgumentList "/S", "/D=$tempDir" -Wait
-
-              # Validate installer output (tesseract.exe should exist)
-              $tempExe = Join-Path $tempDir "tesseract.exe"
-              if (-not (Test-Path $tempExe)) { throw "Installer did not produce expected files in $tempDir" }
-
-              Copy-Item -Path (Join-Path $tempDir '*') -Destination $destDir -Recurse -ErrorAction Stop
-            } catch {
-              Write-Warning ("Installer failed, falling back to Chocolatey: {0}" -f $_.Exception.Message)
-              choco install tesseract -y
-              $chocoPath = "C:\Program Files\Tesseract-OCR"
-              if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
-              if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
-              Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse -ErrorAction Stop
-            }
-          } else {
-            Write-Warning "Falling back to Chocolatey installation of Tesseract"
-            choco install tesseract -y
-            $chocoPath = "C:\Program Files\Tesseract-OCR"
-            if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
-            if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
-            Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse
-          }
-
-          # Verify
-          $tesseractExe = Join-Path $destDir "tesseract.exe"
-          if (Test-Path $tesseractExe) {
-            Write-Host "Tesseract prepared successfully"
-            & $tesseractExe --version
-          } else {
-            Write-Error "Failed to prepare Tesseract"
-            exit 1
-          }
+      # TEMPORARILY DISABLED - uncomment block below to re-enable
+      #- name: Download Tesseract Portable
+      #  shell: powershell
+      #  run: |
+      #    Write-Host "Downloading Tesseract ${{ env.TESSERACT_VERSION }}..."
+      #
+      #    $installer = "tesseract-installer.exe"
+      #    $tempDir = Join-Path $PWD "tesseract-temp"
+      #    $destDir = Join-Path $PWD "portable\Tesseract-OCR"
+      #    New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+      #
+      #    # Try multiple sources to avoid 403/Forbidden and HTML downloads
+      #    $urls = @(
+      #      "https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe",
+      #      "https://sourceforge.net/projects/tesseract-ocr-alt/files/Setup%20-%20UB%20Mannheim/Tesseract-${{ env.TESSERACT_VERSION }}/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe/download"
+      #    )
+      #
+      #    $downloaded = $false
+      #    foreach ($url in $urls) {
+      #      try {
+      #        Write-Host "Trying URL: $url"
+      #        if (Test-Path $installer) { Remove-Item -Force $installer }
+      #        # Use curl to follow redirects and fail on HTTP errors
+      #        $curl = "curl.exe"
+      #        & $curl -L --fail -o $installer $url
+      #        if (Test-Path $installer) {
+      #          $size = (Get-Item $installer).Length
+      #          if ($size -gt 5000000) { # > ~5MB indicates likely valid binary
+      #            $downloaded = $true
+      #            break
+      #          } else {
+      #            Write-Warning ("Downloaded file too small ({0} bytes) from {1}" -f $size, $url)
+      #          }
+      #        }
+      #      } catch {
+      #        Write-Warning ("Failed to download from {0}: {1}" -f $url, $_.Exception.Message)
+      #      }
+      #    }
+      #
+      #    if ($downloaded) {
+      #      try {
+      #        # Prepare temp directory
+      #        if (Test-Path $tempDir) { Remove-Item -Recurse -Force $tempDir }
+      #        New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+      #
+      #        # Silent install into a temp folder under the current workspace
+      #        Start-Process -FilePath $installer -ArgumentList "/S", "/D=$tempDir" -Wait
+      #
+      #        # Validate installer output (tesseract.exe should exist)
+      #        $tempExe = Join-Path $tempDir "tesseract.exe"
+      #        if (-not (Test-Path $tempExe)) { throw "Installer did not produce expected files in $tempDir" }
+      #
+      #        Copy-Item -Path (Join-Path $tempDir '*') -Destination $destDir -Recurse -ErrorAction Stop
+      #      } catch {
+      #        Write-Warning ("Installer failed, falling back to Chocolatey: {0}" -f $_.Exception.Message)
+      #        choco install tesseract -y
+      #        $chocoPath = "C:\Program Files\Tesseract-OCR"
+      #        if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
+      #        if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
+      #        Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse -ErrorAction Stop
+      #      }
+      #    } else {
+      #      Write-Warning "Falling back to Chocolatey installation of Tesseract"
+      #      choco install tesseract -y
+      #      $chocoPath = "C:\Program Files\Tesseract-OCR"
+      #      if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
+      #      if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
+      #      Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse
+      #    }
+      #
+      #    # Verify
+      #    $tesseractExe = Join-Path $destDir "tesseract.exe"
+      #    if (Test-Path $tesseractExe) {
+      #      Write-Host "Tesseract prepared successfully"
+      #      & $tesseractExe --version
+      #    } else {
+      #      Write-Error "Failed to prepare Tesseract"
+      #      exit 1
+      #    }
 
       # ═══════════════════════════════════════════════════════════
       # 4. СКАЧИВАНИЕ POPPLER (PORTABLE)
@@ -246,7 +247,8 @@ jobs:
           Copy-Item "dist\tmc_client.exe" $packageDir
           
           # Копировать Tesseract и Poppler
-          Copy-Item -Path "portable\Tesseract-OCR" -Destination "$packageDir\Tesseract-OCR" -Recurse
+          # TESSERACT DISABLED - uncomment line below to re-enable
+          #Copy-Item -Path "portable\Tesseract-OCR" -Destination "$packageDir\Tesseract-OCR" -Recurse
           Copy-Item -Path "portable\poppler" -Destination "$packageDir\poppler" -Recurse
           
           # Создать config с относительными путями
@@ -291,19 +293,19 @@ jobs:
             validation = @{
               control_types = @{
                 weight_check = @{
-                  description = "Проверка веса"
+                  description = "Weight check"
                   params = @("target_weight", "tolerance")
                 }
                 visual_check = @{
-                  description = "Визуальный осмотр"
+                  description = "Visual inspection"
                   params = @("checklist")
                 }
                 dimension_check = @{
-                  description = "Проверка размеров"
+                  description = "Dimension check"
                   params = @("length", "width", "height", "tolerance")
                 }
                 quantity_check = @{
-                  description = "Пересчёт количества"
+                  description = "Quantity recount"
                   params = @("expected_count")
                 }
               }
@@ -336,57 +338,82 @@ jobs:
           )
           
           # Создать README
-          $readmeContent = ("═══════════════════════════════════════════════════════════════`n" +
-            "  TMC WAREHOUSE SYSTEM - PORTABLE VERSION v${{ steps.version.outputs.VERSION }}`n" +
-            "═══════════════════════════════════════════════════════════════`n`n" +
-            "🚀 БЫСТРЫЙ СТАРТ:`n`n" +
-            "  1. Двойной клик по START_SERVER.bat (оставьте окно открытым)`n" +
-            "  2. Двойной клик по START_CLIENT.bat`n" +
-            "  3. Готово!`n`n" +
-            "───────────────────────────────────────────────────────────────`n`n" +
-            "📁 СТРУКТУРА ПАПОК:`n`n" +
-            "  TMC_Warehouse_Portable/`n" +
-            "  ├── tmc_server.exe       - Сервер приложения`n" +
-            "  ├── tmc_client.exe       - Клиентское приложение`n" +
-            "  ├── START_SERVER.bat     - Запуск сервера`n" +
-            "  ├── START_CLIENT.bat     - Запуск клиента`n" +
-            "  ├── Tesseract-OCR/       - OCR движок (встроен)`n" +
-            "  ├── poppler/             - PDF конвертер (встроен)`n" +
-            "  ├── config/`n" +
-            "  │   └── config.json      - Конфигурация`n" +
-            "  └── data/                - База данных и файлы`n`n" +
-            "───────────────────────────────────────────────────────────────`n`n" +
-            "⚙️ НАСТРОЙКА (опционально):`n`n" +
-            "  Конфигурация: config/config.json`n  `n" +
-            "  Все пути уже настроены для портативного использования.`n" +
-            "  Можно скопировать всю папку на другой компьютер.`n`n" +
-            "───────────────────────────────────────────────────────────────`n`n" +
-            "💡 СИСТЕМНЫЕ ТРЕБОВАНИЯ:`n`n" +
-            "  - Windows 10/11 (64-bit)`n" +
-            "  - 4 GB RAM (рекомендуется 8 GB)`n" +
-            "  - 500 MB свободного места`n" +
-            "  - Веб-камера (опционально)`n`n" +
-            "───────────────────────────────────────────────────────────────`n`n" +
-            "📝 ЛИЦЕНЗИИ:`n`n" +
-            "  TMC Warehouse:  Собственная разработка`n" +
-            "  Tesseract OCR:  Apache License 2.0`n" +
-            "  Poppler:        GPL v2`n`n" +
-            "───────────────────────────────────────────────────────────────`n`n" +
-            "🐛 ПРОБЛЕМЫ:`n`n" +
-            "  1. Окно сервера сразу закрывается:`n" +
-            "     - Откройте START_SERVER.bat вручную`n" +
-            "     - Посмотрите сообщение об ошибке`n  `n" +
-            "  2. Клиент не запускается:`n" +
-            "     - Убедитесь, что сервер запущен (окно открыто)`n  `n" +
-            "  3. Не работает камера:`n" +
-            "     - Проверьте в настройках Windows доступ камеры`n  `n" +
-            "  4. Ошибка OCR:`n" +
-            "     - Проверьте путь tesseract в config.json`n`n" +
-            "───────────────────────────────────────────────────────────────`n`n" +
-            "Built on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n" +
-            "Version:  ${{ steps.version.outputs.VERSION }}`n`n" +
-            "═══════════════════════════════════════════════════════════════")
-          $readmeContent | Out-File -FilePath "$packageDir\README.txt" -Encoding UTF8
+          Set-Content -Path "$packageDir\README.txt" -Encoding UTF8 -Value @(
+            "===============================================================",
+            "  TMC WAREHOUSE SYSTEM - PORTABLE VERSION v${{ steps.version.outputs.VERSION }}",
+            "===============================================================",
+            "",
+            "QUICK START:",
+            "",
+            "  1. Double-click START_SERVER.bat (keep window open)",
+            "  2. Double-click START_CLIENT.bat",
+            "  3. Done!",
+            "",
+            "---------------------------------------------------------------",
+            "",
+            "FOLDER STRUCTURE:",
+            "",
+            "  TMC_Warehouse_Portable/",
+            "  |-- tmc_server.exe       - Application server",
+            "  |-- tmc_client.exe       - Client application",
+            "  |-- START_SERVER.bat     - Start server",
+            "  |-- START_CLIENT.bat     - Start client",
+            "  |-- Tesseract-OCR/       - OCR engine (embedded)",
+            "  |-- poppler/             - PDF converter (embedded)",
+            "  |-- config/",
+            "  |   +-- config.json      - Configuration",
+            "  +-- data/                - Database and files",
+            "",
+            "---------------------------------------------------------------",
+            "",
+            "CONFIGURATION (optional):",
+            "",
+            "  Configuration: config/config.json",
+            "  ",
+            "  All paths are configured for portable use.",
+            "  You can copy the entire folder to another computer.",
+            "",
+            "---------------------------------------------------------------",
+            "",
+            "SYSTEM REQUIREMENTS:",
+            "",
+            "  - Windows 10/11 (64-bit)",
+            "  - 4 GB RAM (recommended 8 GB)",
+            "  - 500 MB free space",
+            "  - Webcam (optional)",
+            "",
+            "---------------------------------------------------------------",
+            "",
+            "LICENSES:",
+            "",
+            "  TMC Warehouse:  Proprietary",
+            "  Tesseract OCR:  Apache License 2.0",
+            "  Poppler:        GPL v2",
+            "",
+            "---------------------------------------------------------------",
+            "",
+            "TROUBLESHOOTING:",
+            "",
+            "  1. Server window closes immediately:",
+            "     - Open START_SERVER.bat manually",
+            "     - Check the error message",
+            "  ",
+            "  2. Client does not start:",
+            "     - Make sure the server is running (window open)",
+            "  ",
+            "  3. Camera not working:",
+            "     - Check camera access in Windows settings",
+            "  ",
+            "  4. OCR error:",
+            "     - Check tesseract path in config.json",
+            "",
+            "---------------------------------------------------------------",
+            "",
+            "Built on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+            "Version:  ${{ steps.version.outputs.VERSION }}",
+            "",
+            "==============================================================="
+          )
           
           Write-Host "✓ Package structure created"
           
