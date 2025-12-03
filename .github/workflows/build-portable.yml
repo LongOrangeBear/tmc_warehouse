@@ -55,85 +55,84 @@ jobs:
       # ═══════════════════════════════════════════════════════════
       # 3. СКАЧИВАНИЕ TESSERACT (PORTABLE)
       # ═══════════════════════════════════════════════════════════
-      # TEMPORARILY DISABLED - uncomment block below to re-enable
-      #- name: Download Tesseract Portable
-      #  shell: powershell
-      #  run: |
-      #    Write-Host "Downloading Tesseract ${{ env.TESSERACT_VERSION }}..."
-      #
-      #    $installer = "tesseract-installer.exe"
-      #    $tempDir = Join-Path $PWD "tesseract-temp"
-      #    $destDir = Join-Path $PWD "portable\Tesseract-OCR"
-      #    New-Item -ItemType Directory -Force -Path $destDir | Out-Null
-      #
-      #    # Try multiple sources to avoid 403/Forbidden and HTML downloads
-      #    $urls = @(
-      #      "https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe",
-      #      "https://sourceforge.net/projects/tesseract-ocr-alt/files/Setup%20-%20UB%20Mannheim/Tesseract-${{ env.TESSERACT_VERSION }}/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe/download"
-      #    )
-      #
-      #    $downloaded = $false
-      #    foreach ($url in $urls) {
-      #      try {
-      #        Write-Host "Trying URL: $url"
-      #        if (Test-Path $installer) { Remove-Item -Force $installer }
-      #        # Use curl to follow redirects and fail on HTTP errors
-      #        $curl = "curl.exe"
-      #        & $curl -L --fail -o $installer $url
-      #        if (Test-Path $installer) {
-      #          $size = (Get-Item $installer).Length
-      #          if ($size -gt 5000000) { # > ~5MB indicates likely valid binary
-      #            $downloaded = $true
-      #            break
-      #          } else {
-      #            Write-Warning ("Downloaded file too small ({0} bytes) from {1}" -f $size, $url)
-      #          }
-      #        }
-      #      } catch {
-      #        Write-Warning ("Failed to download from {0}: {1}" -f $url, $_.Exception.Message)
-      #      }
-      #    }
-      #
-      #    if ($downloaded) {
-      #      try {
-      #        # Prepare temp directory
-      #        if (Test-Path $tempDir) { Remove-Item -Recurse -Force $tempDir }
-      #        New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
-      #
-      #        # Silent install into a temp folder under the current workspace
-      #        Start-Process -FilePath $installer -ArgumentList "/S", "/D=$tempDir" -Wait
-      #
-      #        # Validate installer output (tesseract.exe should exist)
-      #        $tempExe = Join-Path $tempDir "tesseract.exe"
-      #        if (-not (Test-Path $tempExe)) { throw "Installer did not produce expected files in $tempDir" }
-      #
-      #        Copy-Item -Path (Join-Path $tempDir '*') -Destination $destDir -Recurse -ErrorAction Stop
-      #      } catch {
-      #        Write-Warning ("Installer failed, falling back to Chocolatey: {0}" -f $_.Exception.Message)
-      #        choco install tesseract -y
-      #        $chocoPath = "C:\Program Files\Tesseract-OCR"
-      #        if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
-      #        if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
-      #        Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse -ErrorAction Stop
-      #      }
-      #    } else {
-      #      Write-Warning "Falling back to Chocolatey installation of Tesseract"
-      #      choco install tesseract -y
-      #      $chocoPath = "C:\Program Files\Tesseract-OCR"
-      #      if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
-      #      if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
-      #      Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse
-      #    }
-      #
-      #    # Verify
-      #    $tesseractExe = Join-Path $destDir "tesseract.exe"
-      #    if (Test-Path $tesseractExe) {
-      #      Write-Host "Tesseract prepared successfully"
-      #      & $tesseractExe --version
-      #    } else {
-      #      Write-Error "Failed to prepare Tesseract"
-      #      exit 1
-      #    }
+      - name: Download Tesseract Portable
+        shell: powershell
+        run: |
+          Write-Host "Downloading Tesseract ${{ env.TESSERACT_VERSION }}..."
+
+          $installer = "tesseract-installer.exe"
+          $tempDir = Join-Path $PWD "tesseract-temp"
+          $destDir = Join-Path $PWD "portable\Tesseract-OCR"
+          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+
+          # Try multiple sources to avoid 403/Forbidden and HTML downloads
+          $urls = @(
+            "https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe",
+            "https://sourceforge.net/projects/tesseract-ocr-alt/files/Setup%20-%20UB%20Mannheim/Tesseract-${{ env.TESSERACT_VERSION }}/tesseract-ocr-w64-setup-${{ env.TESSERACT_VERSION }}.20231005.exe/download"
+          )
+
+          $downloaded = $false
+          foreach ($url in $urls) {
+            try {
+              Write-Host "Trying URL: $url"
+              if (Test-Path $installer) { Remove-Item -Force $installer }
+              # Use curl to follow redirects and fail on HTTP errors
+              $curl = "curl.exe"
+              & $curl -L --fail -o $installer $url
+              if (Test-Path $installer) {
+                $size = (Get-Item $installer).Length
+                if ($size -gt 5000000) { # > ~5MB indicates likely valid binary
+                  $downloaded = $true
+                  break
+                } else {
+                  Write-Warning ("Downloaded file too small ({0} bytes) from {1}" -f $size, $url)
+                }
+              }
+            } catch {
+              Write-Warning ("Failed to download from {0}: {1}" -f $url, $_.Exception.Message)
+            }
+          }
+
+          if ($downloaded) {
+            try {
+              # Prepare temp directory
+              if (Test-Path $tempDir) { Remove-Item -Recurse -Force $tempDir }
+              New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+
+              # Silent install into a temp folder under the current workspace
+              Start-Process -FilePath $installer -ArgumentList "/S", "/D=$tempDir" -Wait
+
+              # Validate installer output (tesseract.exe should exist)
+              $tempExe = Join-Path $tempDir "tesseract.exe"
+              if (-not (Test-Path $tempExe)) { throw "Installer did not produce expected files in $tempDir" }
+
+              Copy-Item -Path (Join-Path $tempDir '*') -Destination $destDir -Recurse -ErrorAction Stop
+            } catch {
+              Write-Warning ("Installer failed, falling back to Chocolatey: {0}" -f $_.Exception.Message)
+              choco install tesseract -y
+              $chocoPath = "C:\Program Files\Tesseract-OCR"
+              if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
+              if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
+              Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse -ErrorAction Stop
+            }
+          } else {
+            Write-Warning "Falling back to Chocolatey installation of Tesseract"
+            choco install tesseract -y
+            $chocoPath = "C:\Program Files\Tesseract-OCR"
+            if (-not (Test-Path $chocoPath)) { $chocoPath = "C:\Program Files (x86)\Tesseract-OCR" }
+            if (-not (Test-Path $chocoPath)) { Write-Error "Tesseract not found after Chocolatey install"; exit 1 }
+            Copy-Item -Path (Join-Path $chocoPath '*') -Destination $destDir -Recurse
+          }
+
+          # Verify
+          $tesseractExe = Join-Path $destDir "tesseract.exe"
+          if (Test-Path $tesseractExe) {
+            Write-Host "Tesseract prepared successfully"
+            & $tesseractExe --version
+          } else {
+            Write-Error "Failed to prepare Tesseract"
+            exit 1
+          }
 
       # ═══════════════════════════════════════════════════════════
       # 4. СКАЧИВАНИЕ POPPLER (PORTABLE)
@@ -247,8 +246,7 @@ jobs:
           Copy-Item "dist\tmc_client.exe" $packageDir
           
           # Копировать Tesseract и Poppler
-          # TESSERACT DISABLED - uncomment line below to re-enable
-          #Copy-Item -Path "portable\Tesseract-OCR" -Destination "$packageDir\Tesseract-OCR" -Recurse
+          Copy-Item -Path "portable\Tesseract-OCR" -Destination "$packageDir\Tesseract-OCR" -Recurse
           Copy-Item -Path "portable\poppler" -Destination "$packageDir\poppler" -Recurse
           
           # Создать config с относительными путями
