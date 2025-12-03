@@ -197,7 +197,7 @@ jobs:
 
           $serverExe = Join-Path 'dist' 'tmc_server.exe'
           if (Test-Path $serverExe) {
-            Write-Host '✓ Server EXE built successfully'
+            Write-Host 'Server EXE built successfully'
           } else {
             Write-Error 'Failed to build server EXE'
             exit 1
@@ -223,7 +223,7 @@ jobs:
 
           $clientExe = Join-Path 'dist' 'tmc_client.exe'
           if (Test-Path $clientExe) {
-            Write-Host '✓ Client EXE built successfully'
+            Write-Host 'Client EXE built successfully'
           } else {
             Write-Error 'Failed to build client EXE'
             exit 1
@@ -415,15 +415,13 @@ jobs:
             "==============================================================="
           )
           
-          Write-Host "✓ Package structure created"
+          Write-Host "Package structure created successfully"
           
-          # Показать размеры
           Write-Host ""
           Write-Host "Package ready:"
           $sizeBytes = (Get-ChildItem $packageDir -Recurse | Measure-Object -Property Length -Sum).Sum
           $sizeMB = [math]::Round(($sizeBytes / 1MB), 2)
-          $msg = 'Total size: {0} MB' -f $sizeMB
-          Write-Host $msg
+          Write-Host "Total size: $sizeMB MB"
 
       # ═══════════════════════════════════════════════════════════
       # 7. СОЗДАНИЕ АРХИВА
@@ -441,7 +439,7 @@ jobs:
           
           if (Test-Path "dist\$zipName") {
             $size = (Get-Item "dist\$zipName").Length / 1MB
-            Write-Host "✓ Archive created successfully: {0:N2} MB" -f $size
+            Write-Host "Archive created successfully: {0:N2} MB" -f $size
           } else {
             Write-Error "Failed to create archive"
             exit 1
